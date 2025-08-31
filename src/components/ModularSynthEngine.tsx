@@ -41,7 +41,7 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   vcf2.type = 'bandpass';
   
   const cutoffBase = Math.max(80, 200 + safeParam(synthParams.resonance) * 3000);
-  const resonanceQ = Math.max(0.1, 1 + safeParam(synthParams.resonance) * 25); // Higher Q for screaming resonance
+  const resonanceQ = Math.max(0.1, 1 + safeParam(synthParams.resonance) * 8); // Controlled Q to prevent self-oscillation
   
   vcf1.frequency.setValueAtTime(cutoffBase, now);
   vcf1.Q.setValueAtTime(resonanceQ, now);
@@ -67,12 +67,14 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
     // Punchy drum envelope with sharp attack
     vca.gain.linearRampToValueAtTime(0.9, now + attackTime);
     vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.05); // Earlier fade to prevent artifacts
+    vca.gain.linearRampToValueAtTime(0, now + duration); // Final clean cut
   } else {
     // More sustained envelope for sounds with voltage-style curves
     vca.gain.linearRampToValueAtTime(0.8, now + attackTime);
     vca.gain.exponentialRampToValueAtTime(Math.max(0.01, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.1); // Earlier fade to prevent artifacts
+    vca.gain.linearRampToValueAtTime(0, now + duration); // Final clean cut
   }
   
   // LOW FREQUENCY OSCILLATOR (LFO) - Voltage-controlled modulation
@@ -151,7 +153,7 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   // Voltage-controlled noise filtering
   noiseFilter.type = 'highpass';
   noiseFilter.frequency.setValueAtTime(100 + safeParam(synthParams.filterRoute) * 2000, now);
-  noiseFilter.Q.setValueAtTime(1 + safeParam(synthParams.resonance) * 10, now);
+  noiseFilter.Q.setValueAtTime(1 + safeParam(synthParams.resonance) * 4, now); // Reduced noise filter Q
   
   // SAMPLE & HOLD - Classic modular technique
   const sampleHoldRate = 2 + safeParam(synthParams.sampleHold) * 50;
@@ -177,7 +179,7 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   // FEEDBACK LOOP - Classic analog feedback
   const feedbackDelay = ctx.createDelay(0.1);
   const feedbackGain = ctx.createGain();
-  const feedbackAmount = Math.min(0.9, safeParam(synthParams.feedback) * 0.8);
+  const feedbackAmount = Math.min(0.4, safeParam(synthParams.feedback) * 0.3); // Reduced feedback to prevent screaming
   
   feedbackDelay.delayTime.setValueAtTime(0.005 + safeParam(synthParams.feedback) * 0.02, now);
   feedbackGain.gain.setValueAtTime(feedbackAmount, now);
@@ -294,15 +296,15 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   vco2.start(now + startOffset * 0.6);
   noiseSource.start(now + startOffset * 0.2);
   
-  // Stop with slight timing variations (analog behavior)
-  const stopTime = now + duration + 0.1;
+  // Stop with clean timing to prevent artifacts
+  const stopTime = now + duration;
   fmOsc.stop(stopTime);
-  lfo1.stop(stopTime + 0.001);
-  lfo2.stop(stopTime + 0.002);
-  sampleHoldLFO.stop(stopTime + 0.003);
-  vco1.stop(stopTime + 0.001);
-  vco2.stop(stopTime + 0.002);
-  noiseSource.stop(stopTime + 0.001);
+  lfo1.stop(stopTime);
+  lfo2.stop(stopTime);
+  sampleHoldLFO.stop(stopTime);
+  vco1.stop(stopTime);
+  vco2.stop(stopTime);
+  noiseSource.stop(stopTime);
   
   return duration * 1000; // Return duration in milliseconds
 };
