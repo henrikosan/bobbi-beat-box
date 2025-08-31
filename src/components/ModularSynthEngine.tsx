@@ -197,29 +197,61 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   const reverbAmount = safeParam(synthParams.reverbAmount);
   const delayAmount = safeParam(synthParams.delayTime);
   
-  // REVERB - Create convolution reverb simulation using all-pass filters
-  const reverb1 = ctx.createDelay(0.1);  // Early reflections
-  const reverb2 = ctx.createDelay(0.1);  // Late reflections
-  const reverb3 = ctx.createDelay(0.1);  // Room size
-  const reverbGain1 = ctx.createGain();
-  const reverbGain2 = ctx.createGain();
-  const reverbGain3 = ctx.createGain();
+  // REVERB - Proper algorithmic reverb with comb and allpass filters
+  const reverbInput = ctx.createGain();
+  const reverbOutput = ctx.createGain();
+  const reverbMixer = ctx.createGain();
+  
+  // Multiple parallel comb filters for density
+  const combDelays = [];
+  const combGains = [];
+  const combFeedbacks = [];
+  const combDelayTimes = [0.0297, 0.0371, 0.0411, 0.0437]; // Prime numbers for diffusion
+  
+  // All-pass filters for diffusion
+  const allpassDelays = [];
+  const allpassGains = [];
+  const allpassFeedbacks = [];
+  const allpassDelayTimes = [0.005, 0.017, 0.046]; // Cascaded allpass chain
+  
+  // Room size affects all delay times
+  const roomSize = 0.5 + safeParam(synthParams.reverbSize) * 2.5; // Much larger room sizes
+  
+  // Create comb filter bank
+  for (let i = 0; i < combDelayTimes.length; i++) {
+    const delay = ctx.createDelay(1.0);
+    const gain = ctx.createGain();
+    const feedback = ctx.createGain();
+    
+    delay.delayTime.setValueAtTime(combDelayTimes[i] * roomSize, now);
+    gain.gain.setValueAtTime(0.25, now); // Equal mix of comb filters
+    feedback.gain.setValueAtTime(0.7 - (i * 0.1), now); // Decreasing feedback
+    
+    combDelays.push(delay);
+    combGains.push(gain);
+    combFeedbacks.push(feedback);
+  }
+  
+  // Create allpass filter chain
+  for (let i = 0; i < allpassDelayTimes.length; i++) {
+    const delay = ctx.createDelay(0.1);
+    const gain = ctx.createGain();
+    const feedback = ctx.createGain();
+    
+    delay.delayTime.setValueAtTime(allpassDelayTimes[i] * roomSize, now);
+    gain.gain.setValueAtTime(-0.7, now); // Allpass coefficient
+    feedback.gain.setValueAtTime(0.7, now);
+    
+    allpassDelays.push(delay);
+    allpassGains.push(gain);
+    allpassFeedbacks.push(feedback);
+  }
+  
+  // High-frequency damping filter
   const reverbFilter = ctx.createBiquadFilter();
-  
-  // Reverb parameters based on reverbSize
-  const roomSize = 0.01 + safeParam(synthParams.reverbSize) * 0.08;
-  reverb1.delayTime.setValueAtTime(roomSize * 0.3, now);
-  reverb2.delayTime.setValueAtTime(roomSize * 0.7, now);
-  reverb3.delayTime.setValueAtTime(roomSize * 1.0, now);
-  
-  reverbGain1.gain.setValueAtTime(0.6, now);
-  reverbGain2.gain.setValueAtTime(0.4, now);
-  reverbGain3.gain.setValueAtTime(0.3, now);
-  
-  // High-frequency damping in reverb (analog character)
   reverbFilter.type = 'lowpass';
   reverbFilter.frequency.setValueAtTime(8000 - safeParam(synthParams.reverbSize) * 6000, now);
-  reverbFilter.Q.setValueAtTime(0.5, now);
+  reverbFilter.Q.setValueAtTime(0.7, now);
   
   // DELAY - Modular-style delay with feedback
   const delayLine = ctx.createDelay(1.0);
@@ -241,7 +273,10 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   // Effects send levels
   reverbSend.gain.setValueAtTime(reverbAmount, now);
   delaySend.gain.setValueAtTime(delayAmount > 0.01 ? 0.8 : 0, now);
-  effectsReturn.gain.setValueAtTime(0.3, now);
+  effectsReturn.gain.setValueAtTime(0.8, now); // Increased for audible effects
+  
+  // Set reverb output level
+  reverbOutput.gain.setValueAtTime(1.2, now); // Boost reverb output
   
   // MASTER OUTPUT STAGE - After effects processing
   const masterVCA = ctx.createGain();
@@ -259,15 +294,37 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   
   // EFFECTS PATCHING - Wire up reverb and delay
   
-  // Reverb chain
-  reverbSend.connect(reverb1);
-  reverb1.connect(reverbGain1);
-  reverbGain1.connect(reverb2);
-  reverb2.connect(reverbGain2);
-  reverbGain2.connect(reverb3);
-  reverb3.connect(reverbGain3);
-  reverbGain3.connect(reverbFilter);
-  reverbFilter.connect(effectsReturn);
+  // Reverb patching - Connect comb filters in parallel
+  reverbSend.connect(reverbInput);
+  
+  // Connect input to all comb filters in parallel
+  for (let i = 0; i < combDelays.length; i++) {
+    reverbInput.connect(combDelays[i]);
+    
+    // Comb filter feedback loop
+    combDelays[i].connect(combGains[i]);
+    combDelays[i].connect(combFeedbacks[i]);
+    combFeedbacks[i].connect(combDelays[i]);
+    
+    // Mix comb outputs
+    combGains[i].connect(reverbMixer);
+  }
+  
+  // Chain allpass filters for diffusion
+  let allpassChain = reverbMixer;
+  for (let i = 0; i < allpassDelays.length; i++) {
+    allpassChain.connect(allpassDelays[i]);
+    allpassDelays[i].connect(allpassGains[i]);
+    allpassDelays[i].connect(allpassFeedbacks[i]);
+    allpassFeedbacks[i].connect(allpassDelays[i]);
+    
+    allpassChain = allpassGains[i]; // Continue chain
+  }
+  
+  // Final reverb output with filtering
+  allpassChain.connect(reverbFilter);
+  reverbFilter.connect(reverbOutput);
+  reverbOutput.connect(effectsReturn);
   
   // Delay chain with feedback
   delaySend.connect(delayLine);
