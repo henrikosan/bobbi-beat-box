@@ -90,18 +90,20 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
         ctx.stroke();
       }
       
-      // Frequency bars on the sides
-      const numBars = 12;
-      for (let i = 0; i < numBars; i++) {
-        const barHeight = Math.random() * (height * 0.3);
-        const y = (height / 2) - (barHeight / 2);
-        
-        // Left side
-        ctx.fillStyle = `hsl(190, 100%, ${30 + (i * 3)}%)`;
-        ctx.fillRect(5, y, 3, barHeight);
-        
-        // Right side  
-        ctx.fillRect(width - 8, y, 3, barHeight);
+      // Frequency bars on the sides (static when not playing)
+      if (isPlaying) {
+        const numBars = 12;
+        for (let i = 0; i < numBars; i++) {
+          const barHeight = Math.random() * (height * 0.3);
+          const y = (height / 2) - (barHeight / 2);
+          
+          // Left side
+          ctx.fillStyle = `hsl(190, 100%, ${30 + (i * 3)}%)`;
+          ctx.fillRect(5, y, 3, barHeight);
+          
+          // Right side  
+          ctx.fillRect(width - 8, y, 3, barHeight);
+        }
       }
     };
 
@@ -119,17 +121,24 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Animation loop
-    let animationId: number;
-    const animate = () => {
-      draw();
-      animationId = requestAnimationFrame(animate);
-    };
-    animate();
+    // Only animate when playing, otherwise draw once
+    let animationId: number | null = null;
+    
+    if (isPlaying) {
+      const animate = () => {
+        draw();
+        animationId = requestAnimationFrame(animate);
+      };
+      animate();
+    } else {
+      draw(); // Single draw when not playing
+    }
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      cancelAnimationFrame(animationId);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
     };
   }, [waveformData, isPlaying]);
 

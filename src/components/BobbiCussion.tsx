@@ -231,29 +231,29 @@ export const BobbiCussion: React.FC = () => {
             />
           </div>
 
-          {/* Tweak Panel & Visualizer - Center */}
+          {/* Tweak Panel - Center */}
+          <div className="rack-panel p-6">
+            <TweakPanel
+              parameters={synthParams}
+              onParameterChange={handleParamChange}
+            />
+          </div>
+
+          {/* Waveform & Trigger - Right */}
           <div className="space-y-6">
-            <div className="rack-panel p-6 flex-1">
-              <TweakPanel
-                parameters={synthParams}
-                onParameterChange={handleParamChange}
-              />
-            </div>
-            <div className="rack-panel p-6 h-48">
+            <div className="rack-panel p-6 h-64">
               <WaveformVisualizer
                 waveformData={waveformRef.current}
                 isPlaying={isPlaying}
               />
             </div>
-          </div>
-
-          {/* Trigger Button - Right */}
-          <div className="rack-panel p-6 flex items-center justify-center">
-            <TriggerButton
-              onTrigger={handleTrigger}
-              isPlaying={isPlaying}
-              presetName={selectedPreset.name}
-            />
+            <div className="rack-panel p-6 flex-1">
+              <TriggerButton
+                onTrigger={handleTrigger}
+                isPlaying={isPlaying}
+                presetName={selectedPreset.name}
+              />
+            </div>
           </div>
         </div>
 

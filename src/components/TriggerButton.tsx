@@ -39,7 +39,7 @@ export const TriggerButton: React.FC<TriggerButtonProps> = ({
 
   return (
     <div className="h-full flex flex-col items-center justify-center text-center">
-      <h3 className="text-lg font-semibold text-primary mb-6 flex items-center">
+      <h3 className="text-lg font-semibold text-primary mb-4 flex items-center">
         <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
         Trigger
       </h3>
