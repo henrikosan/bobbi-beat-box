@@ -5,8 +5,8 @@ interface PresetBrowserProps {
   presets: Preset[];
   selectedPreset: Preset;
   onSelectPreset: (preset: Preset) => void;
-  onExportPTWav?: (preset: Preset) => Promise<void>;
   onExportStandardWav?: (preset: Preset) => Promise<void>;
+  onRandomizePreset?: (preset: Preset) => void;
   isExporting?: boolean;
 }
 
@@ -14,8 +14,8 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
   presets,
   selectedPreset,
   onSelectPreset,
-  onExportPTWav,
   onExportStandardWav,
+  onRandomizePreset,
   isExporting = false,
 }) => {
   const drumPresets = presets.filter(p => p.category === 'drums');
@@ -39,20 +39,19 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
         </div>
       </button>
       
-      {/* Export Buttons */}
-      {(onExportPTWav || onExportStandardWav) && (
-        <div className="px-3 pb-3 space-y-1">
-          {onExportPTWav && (
+      {/* Action Buttons */}
+      {(onExportStandardWav || onRandomizePreset) && (
+        <div className="px-3 pb-3 flex gap-1">
+          {onRandomizePreset && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onExportPTWav(preset);
+                onRandomizePreset(preset);
               }}
-              disabled={isExporting}
-              className="w-full px-2 py-1 text-xs bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 rounded hover:bg-neon-cyan/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Export → PT-WAV (8-bit @ 22,168 Hz, F-3)"
+              className="flex-1 px-2 py-1 text-xs bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30 rounded hover:bg-neon-magenta/30 transition-colors"
+              title="Randomize parameters while keeping preset character"
             >
-              {isExporting ? 'Exporting...' : 'PT-WAV (8-bit)'}
+              Random
             </button>
           )}
           {onExportStandardWav && (
@@ -62,10 +61,10 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
                 onExportStandardWav(preset);
               }}
               disabled={isExporting}
-              className="w-full px-2 py-1 text-xs bg-neon-yellow/20 text-neon-yellow border border-neon-yellow/30 rounded hover:bg-neon-yellow/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-2 py-1 text-xs bg-neon-yellow/20 text-neon-yellow border border-neon-yellow/30 rounded hover:bg-neon-yellow/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Export → Standard WAV (16-bit @ 44.1 kHz)"
             >
-              {isExporting ? 'Exporting...' : 'Standard WAV (16-bit)'}
+              {isExporting ? 'Exporting...' : 'Standard WAV'}
             </button>
           )}
         </div>

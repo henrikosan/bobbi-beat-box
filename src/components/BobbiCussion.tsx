@@ -318,10 +318,85 @@ export const BobbiCussion: React.FC = () => {
     }
   }, [renderAudioToBuffer, toast]);
 
-  // PT-WAV Export Handler 
-  const handleExportPTWav = useCallback(async (preset: Preset) => {
-    return exportWav(preset, { format: 'pt-wav', targetRmsDBFS: -12 });
-  }, [exportWav]);
+  // Smart Randomization with Preset-Aware Limitations
+  const handleRandomizePreset = useCallback((preset: Preset) => {
+    const random = (min: number, max: number) => min + Math.random() * (max - min);
+    
+    // Base randomization ranges based on preset category
+    const ranges = preset.category === 'drums' ? {
+      // DRUMS: Keep percussive character - short envelopes, controlled modulation
+      envelopeShape: [0.1, 0.6],    // Short to medium (drums need punch)
+      noiseLayer: [0.1, 0.9],       // Wide range (drums can be noisy or clean)
+      fmAmount: [0.1, 0.8],         // Moderate FM (avoid extreme chirps)
+      resonance: [0.2, 0.9],        // Wide resonance range
+      driveColor: [0.2, 0.9],       // Wide drive range
+      crossMod: [0.1, 0.7],         // Moderate cross-mod
+      ringMod: [0.0, 0.8],          // Ring mod can be extreme for drums
+      lfoRate: [0.1, 0.6],          // Slower LFO for drums
+      waveMorph: [0.2, 0.8],        // Wave morphing variety
+      feedback: [0.0, 0.7],         // Controlled feedback
+      filterRoute: [0.2, 0.8],      // Filter routing variety
+      sampleHold: [0.1, 0.8],       // S&H for digital drum character
+      chaosLevel: [0.0, 0.6],       // Moderate chaos
+    } : {
+      // SOUNDS: More experimental, longer textures allowed
+      envelopeShape: [0.1, 0.9],    // Full range (sounds can sustain)
+      noiseLayer: [0.0, 0.8],       // Can be very clean or very noisy
+      fmAmount: [0.0, 1.0],         // Full FM range (sounds can be extreme)
+      resonance: [0.1, 1.0],        // Full resonance range
+      driveColor: [0.0, 0.9],       // Wide drive range
+      crossMod: [0.0, 0.9],         // Wide cross-mod range
+      ringMod: [0.0, 0.9],          // Ring mod variety
+      lfoRate: [0.0, 0.9],          // Full LFO range
+      waveMorph: [0.0, 1.0],        // Full wave morphing
+      feedback: [0.0, 0.9],         // Wide feedback range
+      filterRoute: [0.0, 1.0],      // Full filter routing
+      sampleHold: [0.0, 0.9],       // Wide S&H range
+      chaosLevel: [0.0, 0.8],       // Higher chaos allowed
+    };
+
+    // Apply preset-specific biases based on original character
+    const originalParams = preset.parameters;
+    const randomizedParams: SynthParams = {} as SynthParams;
+
+    // For each parameter, apply smart randomization
+    Object.keys(ranges).forEach(key => {
+      const paramKey = key as keyof SynthParams;
+      const [min, max] = ranges[paramKey];
+      const original = originalParams[paramKey];
+      
+      // Bias randomization toward original character (70% new range, 30% original influence)
+      const baseRandom = random(min, max);
+      const biasedValue = baseRandom * 0.7 + original * 0.3;
+      
+      randomizedParams[paramKey] = Math.max(min, Math.min(max, biasedValue));
+    });
+
+    // Special logic: If it's a kick, keep low frequency character
+    if (preset.id.includes('kick')) {
+      randomizedParams.fmAmount = Math.min(randomizedParams.fmAmount, 0.6);
+      randomizedParams.envelopeShape = Math.max(randomizedParams.envelopeShape, 0.3);
+    }
+    
+    // Special logic: If it's a hi-hat, keep bright character
+    if (preset.id.includes('hihat')) {
+      randomizedParams.noiseLayer = Math.max(randomizedParams.noiseLayer, 0.6);
+      randomizedParams.envelopeShape = Math.min(randomizedParams.envelopeShape, 0.3);
+    }
+
+    // Apply the randomized parameters
+    setSynthParams(randomizedParams);
+    
+    // Auto-trigger to hear the result
+    setTimeout(() => {
+      generateSound();
+    }, 100);
+
+    toast({
+      title: "Parameters Randomized",
+      description: `Applied random variations to ${preset.name}`,
+    });
+  }, [generateSound, toast]);
 
   // Standard WAV Export Handler  
   const handleExportStandardWav = useCallback(async (preset: Preset) => {
@@ -437,8 +512,8 @@ export const BobbiCussion: React.FC = () => {
               presets={DEMO_PRESETS}
               selectedPreset={selectedPreset}
               onSelectPreset={handlePresetSelect}
-              onExportPTWav={handleExportPTWav}
               onExportStandardWav={handleExportStandardWav}
+              onRandomizePreset={handleRandomizePreset}
               isExporting={isExporting}
             />
           </div>
