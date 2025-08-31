@@ -1,5 +1,107 @@
 // Advanced modular synthesis engine with voltage-controlled modulation
 // Inspired by classic semi-modular synthesizers - "the sound of voltage itself"
+
+// WAVETABLE SYSTEM - Classic analog waveforms for morphing
+const createWavetableBank = () => {
+  const tableSize = 2048;
+  const wavetables = [];
+  
+  // Classic analog waveforms - each represents a different synthesizer character
+  const waveforms = [
+    // Moog-style sawtooth with soft harmonics
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      return 2 * ((phase / (2 * Math.PI)) % 1) - 1 + 
+             Math.sin(phase * 2) * 0.1 + 
+             Math.sin(phase * 3) * 0.05;
+    },
+    
+    // Prophet-5 pulse with variable width
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      const pulseWidth = 0.3 + Math.sin(phase * 0.1) * 0.2;
+      return ((phase / (2 * Math.PI)) % 1) < pulseWidth ? 1 : -1;
+    },
+    
+    // Oberheim triangle with subtle harmonics
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      const triangle = 2 * Math.abs(2 * ((phase / (2 * Math.PI)) % 1) - 1) - 1;
+      return triangle + Math.sin(phase * 5) * 0.08;
+    },
+    
+    // Jupiter-8 resonant saw
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      const saw = 2 * ((phase / (2 * Math.PI)) % 1) - 1;
+      const resonance = Math.sin(phase * 7) * 0.15 * Math.exp(-phase * 0.3);
+      return saw + resonance;
+    },
+    
+    // CS-80 formant wave
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      const formant1 = Math.sin(phase * 3) * Math.exp(-Math.abs(Math.sin(phase)) * 2);
+      const formant2 = Math.sin(phase * 7) * Math.exp(-Math.abs(Math.sin(phase * 1.5)) * 1.5) * 0.6;
+      return formant1 + formant2;
+    },
+    
+    // Minimoog lead wave
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      const base = Math.sin(phase);
+      const harmonics = Math.sin(phase * 2) * 0.5 + Math.sin(phase * 3) * 0.25 + Math.sin(phase * 4) * 0.125;
+      return base + harmonics * 0.7;
+    },
+    
+    // Digital/FM bell-like wave
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      const carrier = Math.sin(phase);
+      const modulator = Math.sin(phase * 3.14159) * 2;
+      return Math.sin(phase + modulator) * Math.exp(-phase * 0.5);
+    },
+    
+    // Analog noise-tinged wave
+    (i: number) => {
+      const phase = (i / tableSize) * 2 * Math.PI;
+      const base = Math.sin(phase);
+      const noise = (Math.random() * 2 - 1) * 0.05;
+      const drift = Math.sin(phase * 0.01) * 0.02;
+      return base + noise + drift;
+    }
+  ];
+  
+  // Generate wavetables
+  waveforms.forEach((waveformFunc, tableIndex) => {
+    const wavetable = new Float32Array(tableSize);
+    for (let i = 0; i < tableSize; i++) {
+      wavetable[i] = waveformFunc(i);
+    }
+    wavetables.push(wavetable);
+  });
+  
+  return wavetables;
+};
+
+// Wavetable interpolation - smooth morphing between waveforms
+const getWavetableSample = (wavetables: Float32Array[], position: number, phase: number) => {
+  const numTables = wavetables.length;
+  const scaledPos = position * (numTables - 1);
+  const tableIndex = Math.floor(scaledPos);
+  const tableFrac = scaledPos - tableIndex;
+  
+  const tableSize = wavetables[0].length;
+  const sampleIndex = Math.floor(phase * tableSize) % tableSize;
+  
+  // Get samples from current and next table
+  const sample1 = wavetables[Math.min(tableIndex, numTables - 1)][sampleIndex];
+  const sample2 = wavetables[Math.min(tableIndex + 1, numTables - 1)][sampleIndex];
+  
+  // Linear interpolation between tables
+  return sample1 + (sample2 - sample1) * tableFrac;
+};
+
 export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, selectedPreset: any) => {
   const now = ctx.currentTime;
   const duration = Math.max(0.1, 0.1 + (synthParams.envelopeShape * 0.5));
@@ -17,20 +119,51 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
     : 60;
   baseFreq = Math.max(20, Math.min(2000, baseFreq));
   
-  // VOLTAGE-CONTROLLED OSCILLATORS - Classic modular style
-  const vco1 = ctx.createOscillator();
-  const vco2 = ctx.createOscillator();
+  // Initialize wavetable bank
+  const wavetables = createWavetableBank();
+  
+  // WAVETABLE VOLTAGE-CONTROLLED OSCILLATORS - Classic modular style with morphing
+  const vco1Buffer = ctx.createBuffer(1, 2048, ctx.sampleRate);
+  const vco2Buffer = ctx.createBuffer(1, 2048, ctx.sampleRate);
+  const vco1 = ctx.createBufferSource();
+  const vco2 = ctx.createBufferSource();
   const vco1Gain = ctx.createGain();
   const vco2Gain = ctx.createGain();
   
-  // VCO1: Primary oscillator with voltage control
-  vco1.type = 'sawtooth'; // Classic analog waveform
-  vco1.frequency.setValueAtTime(baseFreq, now);
+  // Wavetable position controls - voltage controllable
+  const wavetablePos1 = safeParam(synthParams.fmAmount); // Use FM Amount as wavetable position
+  const wavetablePos2 = safeParam(synthParams.crossMod); // Use Cross Mod as second wavetable position
   
-  // VCO2: Detuned oscillator for thickness (classic analog technique)
+  // Generate wavetable buffers with real-time morphing
+  const vco1Data = vco1Buffer.getChannelData(0);
+  const vco2Data = vco2Buffer.getChannelData(0);
+  
+  // Fill VCO1 buffer with morphed wavetable
+  for (let i = 0; i < 2048; i++) {
+    const phase = i / 2048;
+    vco1Data[i] = getWavetableSample(wavetables, wavetablePos1, phase);
+  }
+  
+  // Fill VCO2 buffer with different wavetable position (detuned character)
+  const detunedPos = (wavetablePos2 + 0.125) % 1; // Offset for harmonic variety
+  for (let i = 0; i < 2048; i++) {
+    const phase = i / 2048;
+    vco2Data[i] = getWavetableSample(wavetables, detunedPos, phase);
+  }
+  
+  // Assign buffers and set up looping
+  vco1.buffer = vco1Buffer;
+  vco2.buffer = vco2Buffer;
+  vco1.loop = true;
+  vco2.loop = true;
+  
+  // Calculate playback rate for desired frequency
+  const vco1Rate = baseFreq / (ctx.sampleRate / 2048);
   const detune = 1 + (safeParam(synthParams.crossMod) * 0.1 - 0.05); // ±5% detune
-  vco2.type = 'square'; // Different waveform for harmonic content
-  vco2.frequency.setValueAtTime(baseFreq * detune, now);
+  const vco2Rate = (baseFreq * detune) / (ctx.sampleRate / 2048);
+  
+  vco1.playbackRate.setValueAtTime(vco1Rate, now);
+  vco2.playbackRate.setValueAtTime(vco2Rate, now);
   
   // VOLTAGE-CONTROLLED FILTER (VCF) - The heart of modular sound
   const vcf1 = ctx.createBiquadFilter();
@@ -339,10 +472,10 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   vco1.connect(vco1Gain);
   vco2.connect(vco2Gain);
   
-  // FM patching - "razor-sharp FM chirps"
+  // FM patching - "razor-sharp FM chirps" - route to filter instead of frequency
   fmOsc.connect(fmGain);
   fmGain.connect(fmEnvelope);
-  fmEnvelope.connect(vco1.frequency);
+  fmEnvelope.connect(vcf1.frequency); // FM modulates filter instead of VCO frequency
   
   // VCF patching with CV control
   vco1Gain.connect(mixer1);
@@ -424,11 +557,12 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   }
   noiseGain.gain.setValueAtTime(0, now + duration);
   
-  // Voltage-style frequency sweeps
-  const freqSweepAmount = safeParam(synthParams.envelopeShape) * baseFreq * 0.5;
+  // Voltage-style frequency sweeps using playback rate for wavetable oscillators
+  const freqSweepAmount = safeParam(synthParams.envelopeShape) * 0.5;
   if (selectedPreset.category === 'drums') {
-    // Punchy frequency sweep for drums
-    vco1.frequency.exponentialRampToValueAtTime(Math.max(20, baseFreq - freqSweepAmount), now + duration * 0.8);
+    // Punchy frequency sweep for drums - modulate playback rate
+    const targetRate = vco1Rate * (1 - freqSweepAmount);
+    vco1.playbackRate.exponentialRampToValueAtTime(Math.max(0.1, targetRate), now + duration * 0.8);
   }
   
   // Filter envelope - creates "pumping" character with proper offline timing
