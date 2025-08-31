@@ -15,7 +15,15 @@ export const TriggerButton: React.FC<TriggerButtonProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !keyPressed) {
+      // Don't trigger if user is typing in an input field
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' || 
+        (activeElement as HTMLElement).contentEditable === 'true'
+      );
+      
+      if (e.code === 'Space' && !keyPressed && !isInputFocused) {
         e.preventDefault();
         setKeyPressed(true);
         onTrigger();
