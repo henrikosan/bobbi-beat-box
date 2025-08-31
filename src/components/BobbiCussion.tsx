@@ -427,48 +427,54 @@ export const BobbiCussion: React.FC = () => {
             />
           </div>
 
-          {/* Waveform & Trigger - Right */}
-          <div className="space-y-6">
-            <div className="rack-panel p-6 h-64">
+          {/* Waveform, Trigger & AI - Right */}
+          <div className="space-y-4">
+            {/* Waveform - Smaller */}
+            <div className="rack-panel p-4 h-40">
               <WaveformVisualizer
                 waveformData={waveformRef.current}
                 isPlaying={isPlaying}
               />
             </div>
-            <div className="rack-panel p-6 flex-1">
+            
+            {/* Trigger */}
+            <div className="rack-panel p-4 h-32">
               <TriggerButton
                 onTrigger={handleTrigger}
                 isPlaying={isPlaying}
                 presetName={selectedPreset.name}
               />
             </div>
-          </div>
-        </div>
 
-        {/* AI Prompt Area */}
-        <div className="mt-8 rack-panel p-6">
-          <h3 className="text-lg font-semibold text-primary mb-3">AI Sound Design</h3>
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              onKeyDown={handleAiPromptKeyDown}
-              placeholder="Describe your sound: 'I want a resonant industrial snare'"
-              className="flex-1 bg-input text-foreground px-4 py-2 rounded border border-border focus:border-primary focus:outline-none"
-              disabled={isGenerating}
-            />
-            <button 
-              onClick={handleAiGenerate}
-              disabled={!aiPrompt.trim() || isGenerating}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGenerating ? 'Generating...' : 'Generate'}
-            </button>
+            {/* AI Sound Design */}
+            <div className="rack-panel p-4 flex-1">
+              <h3 className="text-sm font-semibold text-neon-cyan mb-3 flex items-center">
+                <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
+                AI Sound Design
+              </h3>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onKeyDown={handleAiPromptKeyDown}
+                  placeholder="'resonant industrial snare'"
+                  className="w-full bg-input text-foreground px-3 py-2 rounded border border-border focus:border-primary focus:outline-none text-sm"
+                  disabled={isGenerating}
+                />
+                <button 
+                  onClick={handleAiGenerate}
+                  disabled={!aiPrompt.trim() || isGenerating}
+                  className="w-full px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {isGenerating ? 'Generating...' : 'Generate'}
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  Describe your sound for AI preset matching
+                </p>
+              </div>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Describe the sound you want, and AI will find the closest preset and adjust parameters.
-          </p>
         </div>
       </div>
     </div>
