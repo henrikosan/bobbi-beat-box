@@ -184,10 +184,10 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   // FEEDBACK LOOP - Classic analog feedback
   const feedbackDelay = ctx.createDelay(0.1);
   const feedbackGain = ctx.createGain();
-  const feedbackAmount = Math.min(0.4, safeParam(synthParams.feedback) * 0.3); // Reduced feedback to prevent screaming
+  const mainFeedbackAmount = Math.min(0.4, safeParam(synthParams.feedback) * 0.3); // Reduced feedback to prevent screaming
   
   feedbackDelay.delayTime.setValueAtTime(0.005 + safeParam(synthParams.feedback) * 0.02, now);
-  feedbackGain.gain.setValueAtTime(feedbackAmount, now);
+  feedbackGain.gain.setValueAtTime(mainFeedbackAmount, now);
   
   // REVERB AND DELAY EFFECTS - Modular-style signal processing
   const reverbSend = ctx.createGain();
@@ -323,7 +323,7 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   // Noise already connected above
   
   // Feedback patching
-  if (feedbackAmount > 0.01) {
+  if (mainFeedbackAmount > 0.01) {
     masterVCA.connect(feedbackDelay);
     feedbackDelay.connect(feedbackGain);
     feedbackGain.connect(vcf1);
