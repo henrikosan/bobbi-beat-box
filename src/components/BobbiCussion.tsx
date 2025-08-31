@@ -36,6 +36,11 @@ export interface Preset {
     filterRoute: number;
     sampleHold: number;
     chaosLevel: number;
+    // Effects parameters
+    reverbAmount: number;
+    reverbSize: number;
+    delayTime: number;
+    delayFeedback: number;
   };
 }
 
@@ -55,6 +60,11 @@ export interface SynthParams {
   filterRoute: number;
   sampleHold: number;
   chaosLevel: number;
+  // Effects parameters
+  reverbAmount: number;
+  reverbSize: number;
+  delayTime: number;
+  delayFeedback: number;
 }
 
 const defaultParams: SynthParams = {
@@ -71,6 +81,11 @@ const defaultParams: SynthParams = {
   filterRoute: 0.4,
   sampleHold: 0.2,
   chaosLevel: 0.1,
+  // Effects defaults
+  reverbAmount: 0.2,
+  reverbSize: 0.5,
+  delayTime: 0.3,
+  delayFeedback: 0.4,
 };
 
 // Enhanced modular presets
@@ -83,7 +98,8 @@ const DEMO_PRESETS: Preset[] = [
     parameters: { 
       envelopeShape: 0.8, noiseLayer: 0.1, fmAmount: 0.6, resonance: 0.3, driveColor: 0.7,
       crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2, waveMorph: 0.3, feedback: 0.2, 
-      filterRoute: 0.4, sampleHold: 0.1, chaosLevel: 0.1 
+      filterRoute: 0.4, sampleHold: 0.1, chaosLevel: 0.1,
+      reverbAmount: 0.1, reverbSize: 0.3, delayTime: 0.0, delayFeedback: 0.1
     }
   },
   {
@@ -94,7 +110,8 @@ const DEMO_PRESETS: Preset[] = [
     parameters: { 
       envelopeShape: 0.2, noiseLayer: 0.8, fmAmount: 0.3, resonance: 0.7, driveColor: 0.4,
       crossMod: 0.5, ringMod: 0.6, lfoRate: 0.7, waveMorph: 0.8, feedback: 0.3,
-      filterRoute: 0.6, sampleHold: 0.4, chaosLevel: 0.3
+      filterRoute: 0.6, sampleHold: 0.4, chaosLevel: 0.3,
+      reverbAmount: 0.3, reverbSize: 0.4, delayTime: 0.2, delayFeedback: 0.3
     }
   },
   {
@@ -105,7 +122,8 @@ const DEMO_PRESETS: Preset[] = [
     parameters: { 
       envelopeShape: 0.1, noiseLayer: 0.9, fmAmount: 0.2, resonance: 0.8, driveColor: 0.2,
       crossMod: 0.2, ringMod: 0.9, lfoRate: 0.9, waveMorph: 0.7, feedback: 0.1,
-      filterRoute: 0.8, sampleHold: 0.8, chaosLevel: 0.2
+      filterRoute: 0.8, sampleHold: 0.8, chaosLevel: 0.2,
+      reverbAmount: 0.4, reverbSize: 0.6, delayTime: 0.1, delayFeedback: 0.2
     }
   },
   {
@@ -116,7 +134,8 @@ const DEMO_PRESETS: Preset[] = [
     parameters: { 
       envelopeShape: 0.15, noiseLayer: 0.3, fmAmount: 0.9, resonance: 0.6, driveColor: 0.5,
       crossMod: 0.8, ringMod: 0.4, lfoRate: 0.6, waveMorph: 0.9, feedback: 0.4,
-      filterRoute: 0.3, sampleHold: 0.6, chaosLevel: 0.5
+      filterRoute: 0.3, sampleHold: 0.6, chaosLevel: 0.5,
+      reverbAmount: 0.2, reverbSize: 0.7, delayTime: 0.4, delayFeedback: 0.5
     }
   },
   {
@@ -127,7 +146,8 @@ const DEMO_PRESETS: Preset[] = [
     parameters: { 
       envelopeShape: 0.4, noiseLayer: 0.7, fmAmount: 0.5, resonance: 0.9, driveColor: 0.8,
       crossMod: 0.7, ringMod: 0.8, lfoRate: 0.3, waveMorph: 0.4, feedback: 0.9,
-      filterRoute: 0.9, sampleHold: 0.3, chaosLevel: 0.8
+      filterRoute: 0.9, sampleHold: 0.3, chaosLevel: 0.8,
+      reverbAmount: 0.5, reverbSize: 0.8, delayTime: 0.3, delayFeedback: 0.4
     }
   },
   {
@@ -138,7 +158,8 @@ const DEMO_PRESETS: Preset[] = [
     parameters: { 
       envelopeShape: 0.25, noiseLayer: 0.95, fmAmount: 0.1, resonance: 0.4, driveColor: 0.6,
       crossMod: 0.1, ringMod: 0.2, lfoRate: 0.8, waveMorph: 0.2, feedback: 0.5,
-      filterRoute: 0.2, sampleHold: 0.9, chaosLevel: 0.4
+      filterRoute: 0.2, sampleHold: 0.9, chaosLevel: 0.4,
+      reverbAmount: 0.3, reverbSize: 0.5, delayTime: 0.2, delayFeedback: 0.3
     }
   }
 ];
@@ -324,38 +345,48 @@ export const BobbiCussion: React.FC = () => {
   const handleRandomizePreset = useCallback((preset: Preset) => {
     const random = (min: number, max: number) => min + Math.random() * (max - min);
     
-    // More conservative ranges to prevent unstable sounds
-    const ranges = preset.category === 'drums' ? {
-      // DRUMS: Keep tight control for musical results
-      envelopeShape: [0.2, 0.5],    // Medium punch, not too long
-      noiseLayer: [0.1, 0.7],       // Controlled noise levels
-      fmAmount: [0.1, 0.6],         // Moderate FM to avoid harsh chirps
-      resonance: [0.2, 0.7],        // Prevent screaming resonance
-      driveColor: [0.1, 0.6],       // Controlled saturation
-      crossMod: [0.1, 0.5],         // Subtle cross-modulation
-      ringMod: [0.0, 0.5],          // Conservative ring mod
-      lfoRate: [0.1, 0.4],          // Slower, more musical LFO
-      waveMorph: [0.3, 0.7],        // Mid-range wave morphing
-      feedback: [0.0, 0.4],         // Low feedback to prevent instability
-      filterRoute: [0.2, 0.6],      // Moderate filter routing
-      sampleHold: [0.1, 0.6],       // Controlled S&H effects
-      chaosLevel: [0.0, 0.3],       // Very conservative chaos
-    } : {
-      // SOUNDS: More experimental but still controlled
-      envelopeShape: [0.2, 0.8],    // Wider sustain range
-      noiseLayer: [0.0, 0.6],       // Can be clean or moderately noisy
-      fmAmount: [0.0, 0.7],         // More FM range but not extreme
-      resonance: [0.1, 0.8],        // Higher resonance but not screaming
-      driveColor: [0.0, 0.7],       // More saturation range
-      crossMod: [0.0, 0.6],         // Moderate cross-mod
-      ringMod: [0.0, 0.6],          // Controlled ring mod
-      lfoRate: [0.0, 0.6],          // Wider LFO range
-      waveMorph: [0.1, 0.9],        // More wave morphing
-      feedback: [0.0, 0.5],         // Still conservative feedback
-      filterRoute: [0.0, 0.8],      // More filter routing
-      sampleHold: [0.0, 0.7],       // More S&H variety
-      chaosLevel: [0.0, 0.4],       // Conservative chaos limit
-    };
+      // More conservative ranges to prevent unstable sounds - now includes effects
+      const ranges = preset.category === 'drums' ? {
+        // DRUMS: Keep tight control for musical results
+        envelopeShape: [0.2, 0.5],    // Medium punch, not too long
+        noiseLayer: [0.1, 0.7],       // Controlled noise levels
+        fmAmount: [0.1, 0.6],         // Moderate FM to avoid harsh chirps
+        resonance: [0.2, 0.7],        // Prevent screaming resonance
+        driveColor: [0.1, 0.6],       // Controlled saturation
+        crossMod: [0.1, 0.5],         // Subtle cross-modulation
+        ringMod: [0.0, 0.5],          // Conservative ring mod
+        lfoRate: [0.1, 0.4],          // Slower, more musical LFO
+        waveMorph: [0.3, 0.7],        // Mid-range wave morphing
+        feedback: [0.0, 0.4],         // Low feedback to prevent instability
+        filterRoute: [0.2, 0.6],      // Moderate filter routing
+        sampleHold: [0.1, 0.6],       // Controlled S&H effects
+        chaosLevel: [0.0, 0.3],       // Very conservative chaos
+        // Effects for drums - subtle
+        reverbAmount: [0.0, 0.4],     // Light reverb for drums
+        reverbSize: [0.2, 0.6],       // Small to medium rooms
+        delayTime: [0.0, 0.3],        // Short delays
+        delayFeedback: [0.0, 0.4],    // Conservative feedback
+      } : {
+        // SOUNDS: More experimental but still controlled
+        envelopeShape: [0.2, 0.8],    // Wider sustain range
+        noiseLayer: [0.0, 0.6],       // Can be clean or moderately noisy
+        fmAmount: [0.0, 0.7],         // More FM range but not extreme
+        resonance: [0.1, 0.8],        // Higher resonance but not screaming
+        driveColor: [0.0, 0.7],       // More saturation range
+        crossMod: [0.0, 0.6],         // Moderate cross-mod
+        ringMod: [0.0, 0.6],          // Controlled ring mod
+        lfoRate: [0.0, 0.6],          // Wider LFO range
+        waveMorph: [0.1, 0.9],        // More wave morphing
+        feedback: [0.0, 0.5],         // Still conservative feedback
+        filterRoute: [0.0, 0.8],      // More filter routing
+        sampleHold: [0.0, 0.7],       // More S&H variety
+        chaosLevel: [0.0, 0.4],       // Conservative chaos limit
+        // Effects for sounds - more experimental
+        reverbAmount: [0.0, 0.7],     // More reverb range
+        reverbSize: [0.3, 0.9],       // Larger spaces
+        delayTime: [0.0, 0.6],        // Longer delays
+        delayFeedback: [0.0, 0.6],    // More feedback
+      };
 
     // Apply stronger bias toward original character (60% new, 40% original)
     const originalParams = preset.parameters;

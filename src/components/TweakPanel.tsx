@@ -92,9 +92,9 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
         Modular Controls
       </h3>
 
-      {/* Enhanced 4x3 grid for all 12 parameters */}
-      <div className="grid grid-cols-4 gap-4 justify-items-center">
-        {/* Row 1 */}
+      {/* Enhanced 5x4 grid for all 16 parameters including effects */}
+      <div className="grid grid-cols-4 gap-3 justify-items-center">
+        {/* Row 1 - Core synthesis */}
         <Knob
           label="Envelope"
           value={parameters.envelopeShape}
@@ -131,7 +131,7 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
           max="Fast"
         />
         
-        {/* Row 2 */}
+        {/* Row 2 - Modulation */}
         <Knob
           label="Noise"
           value={parameters.noiseLayer}
@@ -168,7 +168,7 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
           max="Complex"
         />
         
-        {/* Row 3 */}
+        {/* Row 3 - Classic parameters */}
         <Knob
           label="FM Amount"
           value={parameters.fmAmount}
@@ -204,11 +204,48 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
           min="Order"
           max="Madness"
         />
+        
+        {/* Row 4 - Effects section */}
+        <Knob
+          label="Reverb"
+          value={parameters.reverbAmount}
+          onChange={(value) => onParameterChange('reverbAmount', value)}
+          color="cyan"
+          min="Dry"
+          max="Hall"
+        />
+        
+        <Knob
+          label="Room Size"
+          value={parameters.reverbSize}
+          onChange={(value) => onParameterChange('reverbSize', value)}
+          color="magenta"
+          min="Small"
+          max="Cathedral"
+        />
+        
+        <Knob
+          label="Delay Time"
+          value={parameters.delayTime}
+          onChange={(value) => onParameterChange('delayTime', value)}
+          color="yellow"
+          min="Fast"
+          max="Slow"
+        />
+        
+        <Knob
+          label="Delay FB"
+          value={parameters.delayFeedback}
+          onChange={(value) => onParameterChange('delayFeedback', value)}
+          color="cyan"
+          min="Single"
+          max="Infinite"
+        />
       </div>
 
-      {/* Enhanced Parameter Display */}
+      {/* Enhanced Parameter Display with Effects */}
       <div className="mt-4 pt-3 border-t border-border">
-        <div className="grid grid-cols-4 gap-1 text-xs font-mono">
+        <div className="grid grid-cols-4 gap-1 text-xs font-mono mb-2">
           <div className="flex flex-col items-center">
             <span className="text-muted-foreground text-xs">ENV</span>
             <span className="text-neon-cyan text-sm">{Math.round(parameters.envelopeShape * 100)}</span>
@@ -224,6 +261,24 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
           <div className="flex flex-col items-center">
             <span className="text-muted-foreground text-xs">LFO</span>
             <span className="text-neon-cyan text-sm">{Math.round(parameters.lfoRate * 100)}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-1 text-xs font-mono">
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">REVERB</span>
+            <span className="text-neon-cyan text-sm">{Math.round(parameters.reverbAmount * 100)}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">SIZE</span>
+            <span className="text-neon-magenta text-sm">{Math.round(parameters.reverbSize * 100)}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">DELAY</span>
+            <span className="text-neon-yellow text-sm">{Math.round(parameters.delayTime * 100)}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">FB</span>
+            <span className="text-neon-cyan text-sm">{Math.round(parameters.delayFeedback * 100)}</span>
           </div>
         </div>
       </div>

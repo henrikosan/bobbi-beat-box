@@ -189,9 +189,64 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   feedbackDelay.delayTime.setValueAtTime(0.005 + safeParam(synthParams.feedback) * 0.02, now);
   feedbackGain.gain.setValueAtTime(feedbackAmount, now);
   
-  // MASTER OUTPUT STAGE
+  // REVERB AND DELAY EFFECTS - Modular-style signal processing
+  const reverbSend = ctx.createGain();
+  const delaySend = ctx.createGain();
+  const effectsReturn = ctx.createGain();
+  
+  const reverbAmount = safeParam(synthParams.reverbAmount);
+  const delayAmount = safeParam(synthParams.delayTime);
+  
+  // REVERB - Create convolution reverb simulation using all-pass filters
+  const reverb1 = ctx.createDelay(0.1);  // Early reflections
+  const reverb2 = ctx.createDelay(0.1);  // Late reflections
+  const reverb3 = ctx.createDelay(0.1);  // Room size
+  const reverbGain1 = ctx.createGain();
+  const reverbGain2 = ctx.createGain();
+  const reverbGain3 = ctx.createGain();
+  const reverbFilter = ctx.createBiquadFilter();
+  
+  // Reverb parameters based on reverbSize
+  const roomSize = 0.01 + safeParam(synthParams.reverbSize) * 0.08;
+  reverb1.delayTime.setValueAtTime(roomSize * 0.3, now);
+  reverb2.delayTime.setValueAtTime(roomSize * 0.7, now);
+  reverb3.delayTime.setValueAtTime(roomSize * 1.0, now);
+  
+  reverbGain1.gain.setValueAtTime(0.6, now);
+  reverbGain2.gain.setValueAtTime(0.4, now);
+  reverbGain3.gain.setValueAtTime(0.3, now);
+  
+  // High-frequency damping in reverb (analog character)
+  reverbFilter.type = 'lowpass';
+  reverbFilter.frequency.setValueAtTime(8000 - safeParam(synthParams.reverbSize) * 6000, now);
+  reverbFilter.Q.setValueAtTime(0.5, now);
+  
+  // DELAY - Modular-style delay with feedback
+  const delayLine = ctx.createDelay(1.0);
+  const delayFeedback = ctx.createGain();
+  const delayFilter = ctx.createBiquadFilter();
+  
+  // Delay parameters
+  const delayTime = 0.05 + safeParam(synthParams.delayTime) * 0.4; // 50ms to 450ms
+  const delayFeedbackAmount = safeParam(synthParams.delayFeedback) * 0.7; // Max 70% feedback
+  
+  delayLine.delayTime.setValueAtTime(delayTime, now);
+  delayFeedback.gain.setValueAtTime(delayFeedbackAmount, now);
+  
+  // Delay filter for analog character
+  delayFilter.type = 'lowpass';
+  delayFilter.frequency.setValueAtTime(6000 - delayFeedbackAmount * 4000, now);
+  delayFilter.Q.setValueAtTime(0.7, now);
+  
+  // Effects send levels
+  reverbSend.gain.setValueAtTime(reverbAmount, now);
+  delaySend.gain.setValueAtTime(delayAmount > 0.01 ? 0.8 : 0, now);
+  effectsReturn.gain.setValueAtTime(0.3, now);
+  
+  // MASTER OUTPUT STAGE - After effects processing
   const masterVCA = ctx.createGain();
   const masterSaturation = ctx.createWaveShaper();
+  const finalMixer = ctx.createGain();
   
   // Analog-style saturation curve
   const saturationCurve = new Float32Array(65536);
@@ -202,7 +257,26 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   masterSaturation.curve = saturationCurve;
   masterSaturation.oversample = '2x';
   
-  // PATCHING - Connect the modular system
+  // EFFECTS PATCHING - Wire up reverb and delay
+  
+  // Reverb chain
+  reverbSend.connect(reverb1);
+  reverb1.connect(reverbGain1);
+  reverbGain1.connect(reverb2);
+  reverb2.connect(reverbGain2);
+  reverbGain2.connect(reverb3);
+  reverb3.connect(reverbGain3);
+  reverbGain3.connect(reverbFilter);
+  reverbFilter.connect(effectsReturn);
+  
+  // Delay chain with feedback
+  delaySend.connect(delayLine);
+  delayLine.connect(delayFilter);
+  delayFilter.connect(delayFeedback);
+  delayFeedback.connect(delayLine); // Feedback loop
+  delayFilter.connect(effectsReturn);
+  
+  // MAIN SIGNAL PATCHING - Connect the modular system
   
   // VCOs to mixer
   vco1.connect(vco1Gain);
@@ -240,15 +314,13 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   if (ringModDepth > 0.01) {
     vcf1.connect(ringMod);
     vcf2.connect(ringMod.gain);
+    ringMod.connect(masterVCA);
   }
   
   // Final mixer and VCA - ensure all sources are connected
   vcf1.connect(masterVCA);
   vcf2.connect(masterVCA);
   // Noise already connected above
-  if (ringModDepth > 0.01) {
-    ringMod.connect(masterVCA);
-  }
   
   // Feedback patching
   if (feedbackAmount > 0.01) {
@@ -257,9 +329,22 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
     feedbackGain.connect(vcf1);
   }
   
-  // Master output chain
+  // Master output chain with effects
   masterVCA.connect(vca);
-  vca.connect(masterSaturation);
+  
+  // Effects sends from main signal
+  if (reverbAmount > 0.01) {
+    vca.connect(reverbSend);
+  }
+  if (delayAmount > 0.01) {
+    vca.connect(delaySend);
+  }
+  
+  // Final output mixing: dry + effects
+  vca.connect(finalMixer);           // Dry signal
+  effectsReturn.connect(finalMixer); // Wet effects
+  
+  finalMixer.connect(masterSaturation);
   masterSaturation.connect(ctx.destination);
   
   // Set gain levels with voltage-style curves
