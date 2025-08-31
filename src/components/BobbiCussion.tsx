@@ -232,18 +232,21 @@ export const BobbiCussion: React.FC = () => {
       await ctx.resume();
     }
 
-    // Create offline context for rendering
-    const duration = Math.max(0.1, 0.1 + (preset.parameters.envelopeShape * 0.5));
+    // Create offline context for rendering with extended duration for modular processing
+    const duration = Math.max(0.2, 0.1 + (preset.parameters.envelopeShape * 0.8)); // Extended for complex modulation
     const sampleRate = ctx.sampleRate;
     const bufferLength = Math.floor(duration * sampleRate);
     
     const offlineCtx = new OfflineAudioContext(1, bufferLength, sampleRate);
     
-    // Generate sound in offline context (no audio output, just buffer capture)
-    generateModularSound(offlineCtx, preset.parameters, preset);
+    // Generate sound in offline context with full modular synthesis
+    // The offline context requires immediate parameter scheduling
+    const actualDuration = generateModularSound(offlineCtx, preset.parameters, preset);
     
-    // Render and return the buffer
+    // Ensure offline context processes all scheduled events
     const renderedBuffer = await offlineCtx.startRendering();
+    
+    // Return the rendered audio data - offline context captures all modular functions
     return renderedBuffer.getChannelData(0); // Get mono channel
   }, []);
 
@@ -260,8 +263,7 @@ export const BobbiCussion: React.FC = () => {
     setIsExporting(true);
     
     try {
-      // 1) Render to buffer
-      const renderDurationSecs = Math.max(0.1, 0.1 + (preset.parameters.envelopeShape * 0.5));
+      // 1) Render to buffer with proper duration for modular synthesis
       const render = await renderAudioToBuffer(preset);
 
       // 2) Normalize in place
@@ -281,9 +283,9 @@ export const BobbiCussion: React.FC = () => {
         wav = writeWavU8Mono(pcmU8, 22168).buffer;
         filename = opts.filename || `${preset.name.replace(/[^a-zA-Z0-9]/g, '')}_PT-F-3_22168Hz.wav`;
       } else {
-        // Standard 16-bit WAV Export
+        // Standard 16-bit WAV Export - use proper sample rate from context
         const pcm16 = floatTo16BitPCMWithTPDF(render);
-        wav = encodeWavMono16(pcm16, 44100);
+        wav = encodeWavMono16(pcm16, audioContextRef.current.sampleRate);
         filename = opts.filename || `BobbiCussion_${preset.name.replace(/[^a-zA-Z0-9]/g, '')}_44k.wav`;
       }
 
