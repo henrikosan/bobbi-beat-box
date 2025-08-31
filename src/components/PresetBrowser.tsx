@@ -5,18 +5,14 @@ interface PresetBrowserProps {
   presets: Preset[];
   selectedPreset: Preset;
   onSelectPreset: (preset: Preset) => void;
-  onExportStandardWav?: (preset: Preset) => Promise<void>;
   onRandomizePreset?: (preset: Preset) => void;
-  isExporting?: boolean;
 }
 
 export const PresetBrowser: React.FC<PresetBrowserProps> = ({
   presets,
   selectedPreset,
   onSelectPreset,
-  onExportStandardWav,
   onRandomizePreset,
-  isExporting = false,
 }) => {
   const drumPresets = presets.filter(p => p.category === 'drums');
   const soundPresets = presets.filter(p => p.category === 'sounds');
@@ -39,34 +35,19 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
         </div>
       </button>
       
-      {/* Action Buttons */}
-      {(onExportStandardWav || onRandomizePreset) && (
-        <div className="px-3 pb-3 flex gap-1">
-          {onRandomizePreset && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRandomizePreset(preset);
-              }}
-              className="flex-1 px-2 py-1 text-xs bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30 rounded hover:bg-neon-magenta/30 transition-colors"
-              title="Randomize parameters while keeping preset character"
-            >
-              Random
-            </button>
-          )}
-          {onExportStandardWav && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onExportStandardWav(preset);
-              }}
-              disabled={isExporting}
-              className="flex-1 px-2 py-1 text-xs bg-neon-yellow/20 text-neon-yellow border border-neon-yellow/30 rounded hover:bg-neon-yellow/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Export → Standard WAV (16-bit @ 44.1 kHz)"
-            >
-              {isExporting ? 'Exporting...' : 'Standard WAV'}
-            </button>
-          )}
+      {/* Action Buttons - Only Random now */}
+      {onRandomizePreset && (
+        <div className="px-3 pb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRandomizePreset(preset);
+            }}
+            className="w-full px-2 py-1 text-xs bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30 rounded hover:bg-neon-magenta/30 transition-colors"
+            title="Randomize parameters while keeping preset character"
+          >
+            Random
+          </button>
         </div>
       )}
     </div>

@@ -245,7 +245,7 @@ export const BobbiCussion: React.FC = () => {
   }, [generateSound]);
 
   // PT-WAV Export functionality - Render & Conditioning Pipeline
-  const renderAudioToBuffer = useCallback(async (preset: Preset): Promise<Float32Array> => {
+  const renderAudioToBuffer = useCallback(async (currentSynthParams: SynthParams, preset: Preset): Promise<Float32Array> => {
     if (!audioContextRef.current) throw new Error('AudioContext not available');
     
     const ctx = audioContextRef.current;
@@ -254,15 +254,15 @@ export const BobbiCussion: React.FC = () => {
     }
 
     // Create offline context for rendering with extended duration for modular processing
-    const duration = Math.max(0.2, 0.1 + (preset.parameters.envelopeShape * 0.8)); // Extended for complex modulation
+    const duration = Math.max(0.2, 0.1 + (currentSynthParams.envelopeShape * 0.8)); // Extended for complex modulation
     const sampleRate = ctx.sampleRate;
     const bufferLength = Math.floor(duration * sampleRate);
     
     const offlineCtx = new OfflineAudioContext(1, bufferLength, sampleRate);
     
-    // Generate sound in offline context with full modular synthesis
+    // Generate sound in offline context with current modified parameters
     // The offline context requires immediate parameter scheduling
-    const actualDuration = generateModularSound(offlineCtx, preset.parameters, preset);
+    const actualDuration = generateModularSound(offlineCtx, currentSynthParams, preset);
     
     // Ensure offline context processes all scheduled events
     const renderedBuffer = await offlineCtx.startRendering();
@@ -272,7 +272,7 @@ export const BobbiCussion: React.FC = () => {
   }, []);
 
   // Enhanced WAV Export using integrated audio utilities
-  const exportWav = useCallback(async (preset: Preset, opts: { 
+  const exportWav = useCallback(async (currentSynthParams: SynthParams, preset: Preset, opts: { 
     filename?: string; 
     targetRmsDBFS?: number;
     format?: 'standard' | 'pt-wav';
@@ -284,8 +284,8 @@ export const BobbiCussion: React.FC = () => {
     setIsExporting(true);
     
     try {
-      // 1) Render to buffer with proper duration for modular synthesis
-      const render = await renderAudioToBuffer(preset);
+      // 1) Render to buffer with current modified parameters
+      const render = await renderAudioToBuffer(currentSynthParams, preset);
 
       // 2) Normalize in place
       const info = normalizeMonoBuffer(render, { 
@@ -339,7 +339,7 @@ export const BobbiCussion: React.FC = () => {
     } finally {
       setIsExporting(false);
     }
-  }, [renderAudioToBuffer, toast]);
+  }, [toast]);
 
   // Smart Randomization with Conservative Limits - Avoid "overbursting madness"
   const handleRandomizePreset = useCallback((preset: Preset) => {
@@ -465,10 +465,14 @@ export const BobbiCussion: React.FC = () => {
     });
   }, [generateSound, toast]);
 
-  // Standard WAV Export Handler  
-  const handleExportStandardWav = useCallback(async (preset: Preset) => {
-    return exportWav(preset, { format: 'standard', targetRmsDBFS: -14 });
-  }, [exportWav]);
+  // Export handlers that use current modified parameters
+  const handleExportStandardWav = useCallback(async () => {
+    return exportWav(synthParams, selectedPreset, { format: 'standard', targetRmsDBFS: -14 });
+  }, [exportWav, synthParams, selectedPreset]);
+
+  const handleExportPTWav = useCallback(async () => {
+    return exportWav(synthParams, selectedPreset, { format: 'pt-wav', targetRmsDBFS: -14 });
+  }, [exportWav, synthParams, selectedPreset]);
 
   // AI Sound Design Logic
   const handleAiGenerate = useCallback(async () => {
@@ -579,9 +583,7 @@ export const BobbiCussion: React.FC = () => {
               presets={DEMO_PRESETS}
               selectedPreset={selectedPreset}
               onSelectPreset={handlePresetSelect}
-              onExportStandardWav={handleExportStandardWav}
               onRandomizePreset={handleRandomizePreset}
-              isExporting={isExporting}
             />
           </div>
 
@@ -610,6 +612,35 @@ export const BobbiCussion: React.FC = () => {
                 isPlaying={isPlaying}
                 presetName={selectedPreset.name}
               />
+            </div>
+
+            {/* Export Controls - NEW SECTION */}
+            <div className="rack-panel p-4">
+              <h3 className="text-sm font-semibold text-neon-cyan mb-3 flex items-center">
+                <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
+                Export Audio
+              </h3>
+              <div className="space-y-2">
+                <button
+                  onClick={handleExportStandardWav}
+                  disabled={isExporting}
+                  className="w-full px-3 py-2 text-sm bg-neon-yellow/20 text-neon-yellow border border-neon-yellow/30 rounded hover:bg-neon-yellow/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Export → Standard WAV (16-bit @ 44.1 kHz) - Uses current tweaked parameters"
+                >
+                  {isExporting ? 'Exporting...' : 'Standard WAV'}
+                </button>
+                <button
+                  onClick={handleExportPTWav}
+                  disabled={isExporting}
+                  className="w-full px-3 py-2 text-sm bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30 rounded hover:bg-neon-magenta/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Export → PT-WAV (8-bit @ 22.168 kHz) - Uses current tweaked parameters"
+                >
+                  {isExporting ? 'Exporting...' : 'PT-WAV'}
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  Exports use your current tweaked parameters
+                </p>
+              </div>
             </div>
 
             {/* AI Sound Design */}
