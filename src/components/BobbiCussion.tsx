@@ -86,6 +86,8 @@ export const BobbiCussion: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<Preset>(DEMO_PRESETS[0]);
   const [synthParams, setSynthParams] = useState<SynthParams>(DEMO_PRESETS[0].parameters);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const waveformRef = useRef<number[]>([]);
 
@@ -207,6 +209,94 @@ export const BobbiCussion: React.FC = () => {
     generateSound();
   }, [generateSound]);
 
+  // AI Sound Design Logic
+  const handleAiGenerate = useCallback(async () => {
+    if (!aiPrompt.trim()) return;
+    
+    setIsGenerating(true);
+    
+    // Simulate AI processing delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Simple keyword matching to find closest preset and adjust parameters
+    const prompt = aiPrompt.toLowerCase();
+    let bestPreset = DEMO_PRESETS[0];
+    let paramAdjustments: Partial<SynthParams> = {};
+    
+    // Find best matching preset based on keywords
+    if (prompt.includes('kick') || prompt.includes('bass') || prompt.includes('low')) {
+      bestPreset = DEMO_PRESETS.find(p => p.id === 'kick-1') || DEMO_PRESETS[0];
+    } else if (prompt.includes('snare') || prompt.includes('crack') || prompt.includes('snap')) {
+      bestPreset = DEMO_PRESETS.find(p => p.id === 'snare-1') || DEMO_PRESETS[1];
+    } else if (prompt.includes('hihat') || prompt.includes('hi-hat') || prompt.includes('sizzle')) {
+      bestPreset = DEMO_PRESETS.find(p => p.id === 'hihat-1') || DEMO_PRESETS[2];
+    } else if (prompt.includes('fm') || prompt.includes('tick') || prompt.includes('chirp')) {
+      bestPreset = DEMO_PRESETS.find(p => p.id === 'fm-blip-1') || DEMO_PRESETS[3];
+    } else if (prompt.includes('metal') || prompt.includes('clank') || prompt.includes('industrial')) {
+      bestPreset = DEMO_PRESETS.find(p => p.id === 'metal-hit-1') || DEMO_PRESETS[4];
+    } else if (prompt.includes('noise') || prompt.includes('burst') || prompt.includes('texture')) {
+      bestPreset = DEMO_PRESETS.find(p => p.id === 'noise-burst-1') || DEMO_PRESETS[5];
+    }
+    
+    // Adjust parameters based on descriptive words
+    paramAdjustments = { ...bestPreset.parameters };
+    
+    if (prompt.includes('long') || prompt.includes('sustained')) {
+      paramAdjustments.envelopeShape = Math.min(1, (paramAdjustments.envelopeShape || 0.5) + 0.3);
+    }
+    if (prompt.includes('short') || prompt.includes('quick') || prompt.includes('snappy')) {
+      paramAdjustments.envelopeShape = Math.max(0, (paramAdjustments.envelopeShape || 0.5) - 0.3);
+    }
+    
+    if (prompt.includes('dirty') || prompt.includes('gritty') || prompt.includes('distorted')) {
+      paramAdjustments.noiseLayer = Math.min(1, (paramAdjustments.noiseLayer || 0.5) + 0.4);
+      paramAdjustments.driveColor = Math.min(1, (paramAdjustments.driveColor || 0.5) + 0.3);
+    }
+    if (prompt.includes('clean') || prompt.includes('pure') || prompt.includes('smooth')) {
+      paramAdjustments.noiseLayer = Math.max(0, (paramAdjustments.noiseLayer || 0.5) - 0.3);
+      paramAdjustments.driveColor = Math.max(0, (paramAdjustments.driveColor || 0.5) - 0.2);
+    }
+    
+    if (prompt.includes('harsh') || prompt.includes('aggressive') || prompt.includes('digital')) {
+      paramAdjustments.fmAmount = Math.min(1, (paramAdjustments.fmAmount || 0.5) + 0.4);
+    }
+    if (prompt.includes('subtle') || prompt.includes('soft') || prompt.includes('gentle')) {
+      paramAdjustments.fmAmount = Math.max(0, (paramAdjustments.fmAmount || 0.5) - 0.3);
+    }
+    
+    if (prompt.includes('resonant') || prompt.includes('ring') || prompt.includes('sharp')) {
+      paramAdjustments.resonance = Math.min(1, (paramAdjustments.resonance || 0.5) + 0.4);
+    }
+    if (prompt.includes('dull') || prompt.includes('muffled') || prompt.includes('soft')) {
+      paramAdjustments.resonance = Math.max(0, (paramAdjustments.resonance || 0.5) - 0.3);
+    }
+    
+    if (prompt.includes('warm') || prompt.includes('vintage') || prompt.includes('analog')) {
+      paramAdjustments.driveColor = Math.min(1, (paramAdjustments.driveColor || 0.5) + 0.2);
+    }
+    if (prompt.includes('crunchy') || prompt.includes('modern') || prompt.includes('hard')) {
+      paramAdjustments.driveColor = Math.min(1, (paramAdjustments.driveColor || 0.5) + 0.4);
+    }
+    
+    // Apply the changes
+    setSelectedPreset(bestPreset);
+    setSynthParams(paramAdjustments as SynthParams);
+    setIsGenerating(false);
+    setAiPrompt('');
+    
+    // Automatically trigger the new sound
+    setTimeout(() => {
+      generateSound();
+    }, 200);
+    
+  }, [aiPrompt, generateSound]);
+
+  const handleAiPromptKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAiGenerate();
+    }
+  }, [handleAiGenerate]);
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
@@ -263,11 +353,19 @@ export const BobbiCussion: React.FC = () => {
           <div className="flex gap-4">
             <input
               type="text"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={handleAiPromptKeyDown}
               placeholder="Describe your sound: 'I want a resonant industrial snare'"
               className="flex-1 bg-input text-foreground px-4 py-2 rounded border border-border focus:border-primary focus:outline-none"
+              disabled={isGenerating}
             />
-            <button className="px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/80 transition-colors">
-              Generate
+            <button 
+              onClick={handleAiGenerate}
+              disabled={!aiPrompt.trim() || isGenerating}
+              className="px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isGenerating ? 'Generating...' : 'Generate'}
             </button>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
