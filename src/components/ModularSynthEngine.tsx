@@ -1,254 +1,150 @@
 // Advanced modular synthesis engine with complex routing and cross-modulation
 export const generateModularSound = (ctx: AudioContext, synthParams: any, selectedPreset: any) => {
   const now = ctx.currentTime;
-  const duration = 0.1 + (synthParams.envelopeShape * 0.5);
+  const duration = Math.max(0.1, 0.1 + (synthParams.envelopeShape * 0.5));
   
-  // Base frequency calculation
-  let baseFreq = 60;
-  if (selectedPreset.category === 'sounds') {
-    baseFreq = 150 + (synthParams.fmAmount * 1200);
-  }
+  // Safe parameter validation to prevent NaN/Infinity
+  const safeParam = (value: number, min = 0, max = 1) => {
+    const num = Number(value);
+    if (!isFinite(num)) return min;
+    return Math.max(min, Math.min(max, num));
+  };
   
-  // Create LFO for modulation
-  const lfo1 = ctx.createOscillator();
-  const lfo2 = ctx.createOscillator();
-  const lfoGain1 = ctx.createGain();
-  const lfoGain2 = ctx.createGain();
+  // Base frequency calculation with validation
+  let baseFreq = selectedPreset.category === 'sounds' 
+    ? 150 + (safeParam(synthParams.fmAmount) * 800)
+    : 60;
+  baseFreq = Math.max(20, Math.min(2000, baseFreq)); // Clamp to reasonable range
   
-  lfo1.frequency.setValueAtTime(0.1 + (synthParams.lfoRate * 20), now);
-  lfo2.frequency.setValueAtTime(0.3 + (synthParams.lfoRate * 15), now);
-  lfoGain1.gain.setValueAtTime(synthParams.lfoRate * 50, now);
-  lfoGain2.gain.setValueAtTime(synthParams.lfoRate * 30, now);
+  // Create primary oscillator with validated frequency
+  const osc = ctx.createOscillator();
+  const oscGain = ctx.createGain();
   
-  // Create multiple oscillators with different waveforms
-  const oscillators = [];
-  const gains = [];
-  const waveforms = ['sine', 'sawtooth', 'square', 'triangle'];
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(baseFreq, now);
   
-  for (let i = 0; i < 4; i++) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    // Wave morphing between different waveforms
-    const waveIndex = Math.floor(synthParams.waveMorph * (waveforms.length - 1));
-    osc.type = waveforms[waveIndex] as OscillatorType;
-    
-    // Mathematical frequency relationships
-    const freqRatios = [1, 1.618, Math.PI/2, Math.sqrt(2)]; // Golden ratio, Pi/2, sqrt(2)
-    osc.frequency.setValueAtTime(baseFreq * freqRatios[i], now);
-    
-    oscillators.push(osc);
-    gains.push(gain);
-  }
+  // Create a second oscillator for harmonic content
+  const osc2 = ctx.createOscillator();
+  const osc2Gain = ctx.createGain();
   
-  // Cross-modulation routing - each oscillator modulates the next
-  for (let i = 0; i < oscillators.length; i++) {
-    const nextIndex = (i + 1) % oscillators.length;
-    const crossModGain = ctx.createGain();
-    crossModGain.gain.setValueAtTime(synthParams.crossMod * 100, now);
-    
-    oscillators[i].connect(crossModGain);
-    crossModGain.connect(oscillators[nextIndex].frequency);
-  }
+  const harmonicFreq = baseFreq * (1 + safeParam(synthParams.crossMod, 0, 2));
+  osc2.type = 'square';
+  osc2.frequency.setValueAtTime(harmonicFreq, now);
   
-  // Ring modulation between oscillators
-  const ringModGain = ctx.createGain();
-  ringModGain.gain.setValueAtTime(synthParams.ringMod, now);
+  // FM oscillator with safe parameters
+  const fmOsc = ctx.createOscillator();
+  const fmGain = ctx.createGain();
   
-  // Create ring modulator using gain node multiplication
-  const ringMod1 = ctx.createGain();
-  const ringMod2 = ctx.createGain();
-  ringMod1.gain.setValueAtTime(0, now);
-  ringMod2.gain.setValueAtTime(0, now);
+  const fmFreq = baseFreq * (2 + safeParam(synthParams.fmAmount) * 6);
+  const fmDepth = safeParam(synthParams.fmAmount) * 50;
   
-  oscillators[0].connect(ringMod1.gain);
-  oscillators[1].connect(ringMod2);
-  ringMod2.connect(ringMod1);
+  fmOsc.frequency.setValueAtTime(fmFreq, now);
+  fmGain.gain.setValueAtTime(fmDepth, now);
   
-  // Sample & Hold modulation
-  const sampleHoldBuffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
-  const sampleHoldData = sampleHoldBuffer.getChannelData(0);
-  const sampleRate = 10 + (synthParams.sampleHold * 100); // 10-110 Hz sample rate
+  // Connect FM properly
+  fmOsc.connect(fmGain);
+  fmGain.connect(osc.frequency);
   
-  let currentSample = 0;
-  let sampleCounter = 0;
-  const samplesPerHold = Math.floor(ctx.sampleRate / sampleRate);
-  
-  for (let i = 0; i < sampleHoldData.length; i++) {
-    if (sampleCounter >= samplesPerHold) {
-      currentSample = Math.random() * 2 - 1;
-      sampleCounter = 0;
-    }
-    sampleHoldData[i] = currentSample * synthParams.sampleHold;
-    sampleCounter++;
-  }
-  
-  const sampleHoldSource = ctx.createBufferSource();
-  const sampleHoldGain = ctx.createGain();
-  sampleHoldSource.buffer = sampleHoldBuffer;
-  sampleHoldGain.gain.setValueAtTime(synthParams.sampleHold * 200, now);
-  
-  // Enhanced noise generation with multiple sources
-  const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+  // Safe noise generation
+  const noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
   const noiseData = noiseBuffer.getChannelData(0);
+  
+  const noiseLevel = safeParam(synthParams.noiseLayer);
+  const chaosLevel = safeParam(synthParams.chaosLevel, 0, 0.5); // Limit chaos to prevent infinity
   
   for (let i = 0; i < noiseData.length; i++) {
     const t = i / noiseData.length;
     
-    // Multiple noise sources
-    const whiteNoise = Math.random() * 2 - 1;
-    const pinkNoise = Math.sin(t * Math.PI * 50) * (Math.random() * 2 - 1);
-    const metallicNoise = Math.sin(t * Math.PI * 200 + Math.random()) * (Math.random() * 2 - 1);
+    // Basic noise sources
+    const whiteNoise = (Math.random() * 2 - 1);
+    const pinkNoise = Math.sin(t * Math.PI * 20) * (Math.random() * 2 - 1) * 0.5;
     
-    // Chaos generator - feedback with mathematical operations
-    const chaos = Math.sin(t * Math.PI * synthParams.chaosLevel * 100) * 
-                  Math.tan(whiteNoise * synthParams.chaosLevel * 5);
+    // Safe chaos generation - limit input to prevent tan() infinity
+    const chaosInput = Math.max(-1.5, Math.min(1.5, t * Math.PI * chaosLevel));
+    const chaos = Math.sin(chaosInput) * chaosLevel;
     
-    const noiseMix = (
-      whiteNoise * (1 - synthParams.noiseLayer * 0.3) +
-      pinkNoise * (synthParams.noiseLayer * 0.4) +
-      metallicNoise * (synthParams.noiseLayer * 0.3) +
-      chaos * (synthParams.chaosLevel * 0.5)
-    );
+    const noiseMix = whiteNoise * (1 - noiseLevel * 0.5) + 
+                    pinkNoise * (noiseLevel * 0.3) + 
+                    chaos * 0.2;
     
-    // Mathematical waveshaping with feedback
-    const feedbackAmount = synthParams.feedback * 0.3;
-    const shaped = Math.tanh(noiseMix * (1 + synthParams.driveColor * 4 + feedbackAmount));
-    noiseData[i] = shaped * synthParams.noiseLayer;
+    // Safe waveshaping
+    const driveAmount = 1 + safeParam(synthParams.driveColor) * 3;
+    const shaped = Math.tanh(noiseMix * driveAmount);
+    
+    noiseData[i] = shaped * noiseLevel;
   }
   
   const noiseSource = ctx.createBufferSource();
   const noiseGain = ctx.createGain();
   noiseSource.buffer = noiseBuffer;
   
-  // Advanced filter routing system
-  const filters = [];
-  for (let i = 0; i < 3; i++) {
-    const filter = ctx.createBiquadFilter();
-    const types: BiquadFilterType[] = ['lowpass', 'highpass', 'bandpass'];
-    filter.type = types[i];
-    
-    const baseFreq = 100 + (i * 500) + (synthParams.resonance * 2000);
-    filter.frequency.setValueAtTime(baseFreq, now);
-    filter.Q.setValueAtTime(1 + (synthParams.resonance * 20), now);
-    
-    filters.push(filter);
-  }
+  // Safe filter setup
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
   
-  // Dynamic filter routing based on filterRoute parameter
-  const routingConfig = Math.floor(synthParams.filterRoute * 4);
+  const cutoffFreq = Math.max(80, 200 + safeParam(synthParams.resonance) * 2000);
+  const qValue = Math.max(0.1, 1 + safeParam(synthParams.resonance) * 15);
   
-  // Delay line for feedback and metallic resonance
-  const delay = ctx.createDelay(0.1);
-  const delayFeedback = ctx.createGain();
-  const delayMix = ctx.createGain();
+  filter.frequency.setValueAtTime(cutoffFreq, now);
+  filter.Q.setValueAtTime(qValue, now);
   
-  delay.delayTime.setValueAtTime(0.001 + (synthParams.feedback * 0.05), now);
-  delayFeedback.gain.setValueAtTime(synthParams.feedback * 0.8, now);
-  delayMix.gain.setValueAtTime(0.3, now);
-  
-  // Master output
+  // Master gain
   const masterGain = ctx.createGain();
-  const compressor = ctx.createDynamicsCompressor();
   
-  // Connect everything based on routing configuration
-  oscillators.forEach((osc, index) => {
-    const gain = gains[index];
-    osc.connect(gain);
-    
-    // LFO modulation
-    lfo1.connect(lfoGain1);
-    lfo2.connect(lfoGain2);
-    lfoGain1.connect(osc.frequency);
-    lfoGain2.connect(gain.gain);
-    
-    // Sample & Hold modulation
-    sampleHoldSource.connect(sampleHoldGain);
-    sampleHoldGain.connect(osc.frequency);
-    
-    // Route through filters based on configuration
-    switch (routingConfig) {
-      case 0: // Series
-        if (index === 0) gain.connect(filters[0]);
-        break;
-      case 1: // Parallel  
-        gain.connect(filters[index % filters.length]);
-        break;
-      case 2: // Feedback
-        gain.connect(filters[0]);
-        gain.connect(delay);
-        break;
-      default: // Complex routing
-        gain.connect(filters[index % filters.length]);
-        if (index % 2 === 0) gain.connect(delay);
-    }
-  });
-  
-  // Connect filters in series for some configurations
-  if (routingConfig === 0 || routingConfig === 2) {
-    filters[0].connect(filters[1]);
-    filters[1].connect(filters[2]);
-    filters[2].connect(compressor);
-  } else {
-    filters.forEach(filter => filter.connect(compressor));
-  }
-  
-  // Ring modulation output
-  ringMod1.connect(compressor);
-  
-  // Noise path
+  // Connect audio graph safely
+  osc.connect(oscGain);
+  osc2.connect(osc2Gain);
   noiseSource.connect(noiseGain);
-  noiseGain.connect(filters[1]);
   
-  // Delay feedback loop
-  delay.connect(delayFeedback);
-  delayFeedback.connect(delay);
-  delay.connect(delayMix);
-  delayMix.connect(compressor);
-  
-  // Final output
-  compressor.connect(masterGain);
+  oscGain.connect(filter);
+  osc2Gain.connect(filter);
+  noiseGain.connect(filter);
+  filter.connect(masterGain);
   masterGain.connect(ctx.destination);
   
-  // Complex mathematical envelopes
-  const attackTime = 0.005 + (synthParams.envelopeShape * 0.02);
-  const decayTime = duration - attackTime;
+  // Safe envelope parameters
+  const attackTime = Math.max(0.001, 0.005 + safeParam(synthParams.envelopeShape) * 0.02);
+  const releaseStart = now + attackTime;
+  const releaseEnd = now + duration;
   
-  // Individual gain envelopes with mathematical curves
-  gains.forEach((gain, index) => {
-    const amplitude = 0.4 / (index + 1); // Harmonic series
-    const curve = Math.pow(2, -index); // Exponential decay per oscillator
-    
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(amplitude * curve, now + attackTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-  });
+  // Oscillator envelopes with validation
+  const oscLevel = 0.3;
+  const osc2Level = 0.2 * safeParam(synthParams.crossMod);
+  const noiseLevel2 = safeParam(synthParams.noiseLayer) * 0.4;
   
-  // Noise envelope
-  const noisePeak = synthParams.noiseLayer * 0.6;
+  // Set safe gain values
+  oscGain.gain.setValueAtTime(0, now);
+  oscGain.gain.linearRampToValueAtTime(oscLevel, releaseStart);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
+  
+  osc2Gain.gain.setValueAtTime(0, now);
+  osc2Gain.gain.linearRampToValueAtTime(osc2Level, releaseStart);
+  osc2Gain.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
+  
   noiseGain.gain.setValueAtTime(0, now);
-  noiseGain.gain.linearRampToValueAtTime(noisePeak, now + attackTime * 0.5);
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.6);
+  noiseGain.gain.linearRampToValueAtTime(noiseLevel2, releaseStart * 0.5);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, releaseEnd * 0.7);
   
-  // Master envelope with mathematical shaping
-  const masterPeak = 0.8;
+  // Master envelope
   masterGain.gain.setValueAtTime(0, now);
-  masterGain.gain.setTargetAtTime(masterPeak, now, attackTime);
-  masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  masterGain.gain.linearRampToValueAtTime(0.8, releaseStart);
+  masterGain.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
   
-  // Start all sources
-  lfo1.start(now);
-  lfo2.start(now);
-  oscillators.forEach(osc => osc.start(now));
-  sampleHoldSource.start(now);
+  // Frequency modulation over time
+  const freqEnd = baseFreq * 0.5;
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), releaseEnd);
+  
+  // Start sources
+  fmOsc.start(now);
+  osc.start(now);
+  osc2.start(now);
   noiseSource.start(now);
   
-  // Stop all sources
-  const stopTime = now + duration;
-  lfo1.stop(stopTime);
-  lfo2.stop(stopTime);
-  oscillators.forEach(osc => osc.stop(stopTime));
-  sampleHoldSource.stop(stopTime);
+  // Stop sources
+  const stopTime = now + duration + 0.1;
+  fmOsc.stop(stopTime);
+  osc.stop(stopTime);
+  osc2.stop(stopTime);
   noiseSource.stop(stopTime);
   
   return duration * 1000; // Return duration in milliseconds
