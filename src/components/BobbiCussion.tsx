@@ -318,73 +318,107 @@ export const BobbiCussion: React.FC = () => {
     }
   }, [renderAudioToBuffer, toast]);
 
-  // Smart Randomization with Preset-Aware Limitations
+  // Smart Randomization with Conservative Limits - Avoid "overbursting madness"
   const handleRandomizePreset = useCallback((preset: Preset) => {
     const random = (min: number, max: number) => min + Math.random() * (max - min);
     
-    // Base randomization ranges based on preset category
+    // More conservative ranges to prevent unstable sounds
     const ranges = preset.category === 'drums' ? {
-      // DRUMS: Keep percussive character - short envelopes, controlled modulation
-      envelopeShape: [0.1, 0.6],    // Short to medium (drums need punch)
-      noiseLayer: [0.1, 0.9],       // Wide range (drums can be noisy or clean)
-      fmAmount: [0.1, 0.8],         // Moderate FM (avoid extreme chirps)
-      resonance: [0.2, 0.9],        // Wide resonance range
-      driveColor: [0.2, 0.9],       // Wide drive range
-      crossMod: [0.1, 0.7],         // Moderate cross-mod
-      ringMod: [0.0, 0.8],          // Ring mod can be extreme for drums
-      lfoRate: [0.1, 0.6],          // Slower LFO for drums
-      waveMorph: [0.2, 0.8],        // Wave morphing variety
-      feedback: [0.0, 0.7],         // Controlled feedback
-      filterRoute: [0.2, 0.8],      // Filter routing variety
-      sampleHold: [0.1, 0.8],       // S&H for digital drum character
-      chaosLevel: [0.0, 0.6],       // Moderate chaos
+      // DRUMS: Keep tight control for musical results
+      envelopeShape: [0.2, 0.5],    // Medium punch, not too long
+      noiseLayer: [0.1, 0.7],       // Controlled noise levels
+      fmAmount: [0.1, 0.6],         // Moderate FM to avoid harsh chirps
+      resonance: [0.2, 0.7],        // Prevent screaming resonance
+      driveColor: [0.1, 0.6],       // Controlled saturation
+      crossMod: [0.1, 0.5],         // Subtle cross-modulation
+      ringMod: [0.0, 0.5],          // Conservative ring mod
+      lfoRate: [0.1, 0.4],          // Slower, more musical LFO
+      waveMorph: [0.3, 0.7],        // Mid-range wave morphing
+      feedback: [0.0, 0.4],         // Low feedback to prevent instability
+      filterRoute: [0.2, 0.6],      // Moderate filter routing
+      sampleHold: [0.1, 0.6],       // Controlled S&H effects
+      chaosLevel: [0.0, 0.3],       // Very conservative chaos
     } : {
-      // SOUNDS: More experimental, longer textures allowed
-      envelopeShape: [0.1, 0.9],    // Full range (sounds can sustain)
-      noiseLayer: [0.0, 0.8],       // Can be very clean or very noisy
-      fmAmount: [0.0, 1.0],         // Full FM range (sounds can be extreme)
-      resonance: [0.1, 1.0],        // Full resonance range
-      driveColor: [0.0, 0.9],       // Wide drive range
-      crossMod: [0.0, 0.9],         // Wide cross-mod range
-      ringMod: [0.0, 0.9],          // Ring mod variety
-      lfoRate: [0.0, 0.9],          // Full LFO range
-      waveMorph: [0.0, 1.0],        // Full wave morphing
-      feedback: [0.0, 0.9],         // Wide feedback range
-      filterRoute: [0.0, 1.0],      // Full filter routing
-      sampleHold: [0.0, 0.9],       // Wide S&H range
-      chaosLevel: [0.0, 0.8],       // Higher chaos allowed
+      // SOUNDS: More experimental but still controlled
+      envelopeShape: [0.2, 0.8],    // Wider sustain range
+      noiseLayer: [0.0, 0.6],       // Can be clean or moderately noisy
+      fmAmount: [0.0, 0.7],         // More FM range but not extreme
+      resonance: [0.1, 0.8],        // Higher resonance but not screaming
+      driveColor: [0.0, 0.7],       // More saturation range
+      crossMod: [0.0, 0.6],         // Moderate cross-mod
+      ringMod: [0.0, 0.6],          // Controlled ring mod
+      lfoRate: [0.0, 0.6],          // Wider LFO range
+      waveMorph: [0.1, 0.9],        // More wave morphing
+      feedback: [0.0, 0.5],         // Still conservative feedback
+      filterRoute: [0.0, 0.8],      // More filter routing
+      sampleHold: [0.0, 0.7],       // More S&H variety
+      chaosLevel: [0.0, 0.4],       // Conservative chaos limit
     };
 
-    // Apply preset-specific biases based on original character
+    // Apply stronger bias toward original character (60% new, 40% original)
     const originalParams = preset.parameters;
     const randomizedParams: SynthParams = {} as SynthParams;
 
-    // For each parameter, apply smart randomization
     Object.keys(ranges).forEach(key => {
       const paramKey = key as keyof SynthParams;
       const [min, max] = ranges[paramKey];
       const original = originalParams[paramKey];
       
-      // Bias randomization toward original character (70% new range, 30% original influence)
+      // Stronger bias toward original + safety clamping
       const baseRandom = random(min, max);
-      const biasedValue = baseRandom * 0.7 + original * 0.3;
+      const biasedValue = baseRandom * 0.6 + original * 0.4;
       
-      randomizedParams[paramKey] = Math.max(min, Math.min(max, biasedValue));
+      randomizedParams[paramKey] = Math.max(0, Math.min(1, biasedValue));
     });
 
-    // Special logic: If it's a kick, keep low frequency character
-    if (preset.id.includes('kick')) {
-      randomizedParams.fmAmount = Math.min(randomizedParams.fmAmount, 0.6);
-      randomizedParams.envelopeShape = Math.max(randomizedParams.envelopeShape, 0.3);
+    // Safety interdependencies to prevent unstable combinations
+    
+    // If high resonance, reduce feedback to prevent runaway
+    if (randomizedParams.resonance > 0.6) {
+      randomizedParams.feedback = Math.min(randomizedParams.feedback, 0.3);
     }
     
-    // Special logic: If it's a hi-hat, keep bright character
-    if (preset.id.includes('hihat')) {
-      randomizedParams.noiseLayer = Math.max(randomizedParams.noiseLayer, 0.6);
-      randomizedParams.envelopeShape = Math.min(randomizedParams.envelopeShape, 0.3);
+    // If high feedback, reduce chaos and resonance
+    if (randomizedParams.feedback > 0.4) {
+      randomizedParams.chaosLevel = Math.min(randomizedParams.chaosLevel, 0.2);
+      randomizedParams.resonance = Math.min(randomizedParams.resonance, 0.6);
+    }
+    
+    // If high chaos, reduce other extreme parameters
+    if (randomizedParams.chaosLevel > 0.3) {
+      randomizedParams.feedback = Math.min(randomizedParams.feedback, 0.2);
+      randomizedParams.ringMod = Math.min(randomizedParams.ringMod, 0.4);
+      randomizedParams.fmAmount = Math.min(randomizedParams.fmAmount, 0.5);
+    }
+    
+    // If high FM, reduce ring mod to prevent harshness
+    if (randomizedParams.fmAmount > 0.6) {
+      randomizedParams.ringMod = Math.min(randomizedParams.ringMod, 0.3);
+      randomizedParams.chaosLevel = Math.min(randomizedParams.chaosLevel, 0.2);
     }
 
-    // Apply the randomized parameters
+    // Preset-specific safety rules
+    if (preset.id.includes('kick')) {
+      // Kicks need controlled low-end
+      randomizedParams.fmAmount = Math.min(randomizedParams.fmAmount, 0.4);
+      randomizedParams.envelopeShape = Math.max(randomizedParams.envelopeShape, 0.3);
+      randomizedParams.chaosLevel = Math.min(randomizedParams.chaosLevel, 0.2);
+    }
+    
+    if (preset.id.includes('hihat')) {
+      // Hi-hats need brightness but control
+      randomizedParams.noiseLayer = Math.max(randomizedParams.noiseLayer, 0.4);
+      randomizedParams.envelopeShape = Math.min(randomizedParams.envelopeShape, 0.4);
+      randomizedParams.feedback = Math.min(randomizedParams.feedback, 0.3);
+    }
+    
+    if (preset.id.includes('snare')) {
+      // Snares need punch but not chaos
+      randomizedParams.chaosLevel = Math.min(randomizedParams.chaosLevel, 0.3);
+      randomizedParams.feedback = Math.min(randomizedParams.feedback, 0.4);
+    }
+
+    // Apply the controlled randomization
     setSynthParams(randomizedParams);
     
     // Auto-trigger to hear the result
@@ -394,7 +428,7 @@ export const BobbiCussion: React.FC = () => {
 
     toast({
       title: "Parameters Randomized",
-      description: `Applied random variations to ${preset.name}`,
+      description: `Applied controlled variations to ${preset.name}`,
     });
   }, [generateSound, toast]);
 
