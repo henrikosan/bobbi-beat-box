@@ -119,13 +119,13 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   fmEnvelope.gain.exponentialRampToValueAtTime(0.1, now + attackTime * 3);
   
   // NOISE GENERATORS - "Layers of manipulated noise"
-  const noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
+  const noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * (duration + 0.1)), ctx.sampleRate);
   const noiseData = noiseBuffer.getChannelData(0);
   
   const noiseLevel = safeParam(synthParams.noiseLayer);
   const chaosLevel = safeParam(synthParams.chaosLevel, 0, 0.8);
   
-  // Generate complex noise layers
+  // Generate complex noise layers with enhanced offline context compatibility
   for (let i = 0; i < noiseData.length; i++) {
     const t = i / noiseData.length;
     
@@ -144,14 +144,16 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
                     voltageNoise * (noiseLevel * 0.3);
     
     // Apply analog-style saturation
-    noiseData[i] = Math.tanh(noiseMix * (1 + safeParam(synthParams.driveColor) * 2));
+    noiseData[i] = Math.tanh(noiseMix * (1 + safeParam(synthParams.driveColor) * 2)) * 0.9;
   }
   
   const noiseSource = ctx.createBufferSource();
   const noiseGain = ctx.createGain();
   const noiseFilter = ctx.createBiquadFilter();
   
+  // Ensure noise buffer is properly assigned
   noiseSource.buffer = noiseBuffer;
+  noiseSource.loop = false; // Ensure single playback
   
   // Voltage-controlled noise filtering
   noiseFilter.type = 'highpass';
@@ -229,9 +231,10 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
     sampleHoldGain.connect(vcf1.frequency);
   }
   
-  // Noise path
+  // Noise path - ensure proper connection for offline rendering
   noiseSource.connect(noiseFilter);
   noiseFilter.connect(noiseGain);
+  noiseGain.connect(masterVCA); // Direct connection to ensure capture
   
   // Ring modulation
   if (ringModDepth > 0.01) {
@@ -239,10 +242,10 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
     vcf2.connect(ringMod.gain);
   }
   
-  // Final mixer and VCA
+  // Final mixer and VCA - ensure all sources are connected
   vcf1.connect(masterVCA);
   vcf2.connect(masterVCA);
-  noiseGain.connect(masterVCA);
+  // Noise already connected above
   if (ringModDepth > 0.01) {
     ringMod.connect(masterVCA);
   }
@@ -262,7 +265,7 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   // Set gain levels with voltage-style curves
   const vco1Level = 0.4 * (1 + safeParam(synthParams.crossMod) * 0.5);
   const vco2Level = 0.3 * safeParam(synthParams.crossMod);
-  const noiseLevel2 = safeParam(synthParams.noiseLayer) * 0.7;
+  const noiseLevel2 = Math.max(0.001, safeParam(synthParams.noiseLayer) * 0.8); // Ensure minimum noise level for capture
   
   vco1Gain.gain.setValueAtTime(vco1Level, now);
   vco2Gain.gain.setValueAtTime(vco2Level, now);
@@ -306,7 +309,7 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   sampleHoldLFO.start(now + startOffset);
   vco1.start(now + startOffset * 0.3);
   vco2.start(now + startOffset * 0.6);
-  noiseSource.start(now + startOffset * 0.2);
+  noiseSource.start(now); // Start noise immediately for proper capture
   
   // Stop with clean timing to prevent artifacts
   const stopTime = now + duration;
@@ -316,7 +319,7 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   sampleHoldLFO.stop(stopTime);
   vco1.stop(stopTime);
   vco2.stop(stopTime);
-  noiseSource.stop(stopTime);
+  noiseSource.stop(stopTime); // Ensure noise stops at exact time
   
   return duration * 1000; // Return duration in milliseconds
 };
