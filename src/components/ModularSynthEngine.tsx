@@ -1,5 +1,5 @@
 // Advanced modular synthesis engine with complex routing and cross-modulation
-export const generateModularSound = (ctx: AudioContext, synthParams: any, selectedPreset: any) => {
+export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, selectedPreset: any) => {
   const now = ctx.currentTime;
   const duration = Math.max(0.1, 0.1 + (synthParams.envelopeShape * 0.5));
   

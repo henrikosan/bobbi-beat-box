@@ -4,6 +4,8 @@ import { TweakPanel } from './TweakPanel';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { TriggerButton } from './TriggerButton';
 import { generateModularSound } from './ModularSynthEngine';
+import { exportPTWavV2, validatePTWavExport } from '../lib/ptWavExport';
+import { useToast } from '../hooks/use-toast';
 
 // Preset definitions
 export interface Preset {
@@ -138,8 +140,10 @@ export const BobbiCussion: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const waveformRef = useRef<number[]>([]);
+  const { toast } = useToast();
 
   // Initialize Web Audio Context
   useEffect(() => {
@@ -209,6 +213,97 @@ export const BobbiCussion: React.FC = () => {
   const handleTrigger = useCallback(() => {
     generateSound();
   }, [generateSound]);
+
+  // PT-WAV Export functionality - Render & Conditioning Pipeline
+  const renderAudioToBuffer = useCallback(async (preset: Preset): Promise<Float32Array> => {
+    if (!audioContextRef.current) throw new Error('AudioContext not available');
+    
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    // Create offline context for rendering
+    const duration = Math.max(0.1, 0.1 + (preset.parameters.envelopeShape * 0.5));
+    const sampleRate = ctx.sampleRate;
+    const bufferLength = Math.floor(duration * sampleRate);
+    
+    const offlineCtx = new OfflineAudioContext(1, bufferLength, sampleRate);
+    
+    // Generate sound in offline context (no audio output, just buffer capture)
+    generateModularSound(offlineCtx, preset.parameters, preset);
+    
+    // Render and return the buffer
+    const renderedBuffer = await offlineCtx.startRendering();
+    return renderedBuffer.getChannelData(0); // Get mono channel
+  }, []);
+
+  // PT-WAV Export Handler with validation
+  const handleExportPTWav = useCallback(async (preset: Preset) => {
+    if (isExporting) return;
+    
+    setIsExporting(true);
+    
+    try {
+      // Step 2: Render & Conditioning Pipeline
+      const audioBuffer = await renderAudioToBuffer(preset);
+      
+      if (!audioContextRef.current) throw new Error('AudioContext not available');
+      
+      // Step 3-4: Resample & Quantize + WAV Container Writing
+      const { blob, filename } = exportPTWavV2(audioBuffer, {
+        srcSampleRate: audioContextRef.current.sampleRate,
+        targetSampleRate: 22168, // PT-F-3 target rate
+        presetName: preset.name.replace(/[^a-zA-Z0-9]/g, ''), // Clean name for filename
+        returnBlob: true
+      });
+
+      if (!blob) throw new Error('Failed to create WAV blob');
+
+      // Step 6: Filenames & Validation - Auto-test after export
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const validation = validatePTWavExport(bytes);
+      
+      if (!validation.valid) {
+        console.warn('PT-WAV validation warnings:', validation.errors);
+        toast({
+          title: "Export Warning",
+          description: `WAV exported with warnings: ${validation.errors.join(', ')}`,
+          variant: "destructive",
+        });
+      }
+
+      // Step 5: UI Integration - Download file
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Show success toast with exact filename
+      toast({
+        title: "PT-WAV Export Complete",
+        description: `Exported ${filename}`,
+      });
+
+      // Log validation stats for dev notes
+      console.log('PT-WAV Export Stats:', validation.stats);
+      
+    } catch (error) {
+      console.error('PT-WAV Export failed:', error);
+      toast({
+        title: "Export Failed", 
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, renderAudioToBuffer, toast]);
 
   // AI Sound Design Logic
   const handleAiGenerate = useCallback(async () => {
@@ -319,6 +414,8 @@ export const BobbiCussion: React.FC = () => {
               presets={DEMO_PRESETS}
               selectedPreset={selectedPreset}
               onSelectPreset={handlePresetSelect}
+              onExportPreset={handleExportPTWav}
+              isExporting={isExporting}
             />
           </div>
 

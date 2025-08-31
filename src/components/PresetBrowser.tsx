@@ -5,30 +5,55 @@ interface PresetBrowserProps {
   presets: Preset[];
   selectedPreset: Preset;
   onSelectPreset: (preset: Preset) => void;
+  onExportPreset?: (preset: Preset) => Promise<void>;
+  isExporting?: boolean;
 }
 
 export const PresetBrowser: React.FC<PresetBrowserProps> = ({
   presets,
   selectedPreset,
   onSelectPreset,
+  onExportPreset,
+  isExporting = false,
 }) => {
   const drumPresets = presets.filter(p => p.category === 'drums');
   const soundPresets = presets.filter(p => p.category === 'sounds');
 
   const PresetItem: React.FC<{ preset: Preset }> = ({ preset }) => (
-    <button
-      onClick={() => onSelectPreset(preset)}
-      className={`w-full p-3 rounded text-left transition-all duration-200 ${
+    <div
+      className={`w-full rounded border transition-all duration-200 ${
         selectedPreset.id === preset.id
-          ? 'bg-primary/20 border border-primary shadow-lg'
-          : 'bg-panel-medium hover:bg-panel-light border border-border'
+          ? 'bg-primary/20 border-primary shadow-lg'
+          : 'bg-panel-medium hover:bg-panel-light border-border'
       }`}
     >
-      <div className="font-semibold text-sm text-foreground">{preset.name}</div>
-      <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
-        {preset.description}
-      </div>
-    </button>
+      <button
+        onClick={() => onSelectPreset(preset)}
+        className="w-full p-3 text-left"
+      >
+        <div className="font-semibold text-sm text-foreground">{preset.name}</div>
+        <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          {preset.description}
+        </div>
+      </button>
+      
+      {/* Export Button */}
+      {onExportPreset && (
+        <div className="px-3 pb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onExportPreset(preset);
+            }}
+            disabled={isExporting}
+            className="w-full px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Export → PT-WAV (8-bit @ 22,168 Hz, F-3)"
+          >
+            {isExporting ? 'Exporting...' : 'Export PT-WAV'}
+          </button>
+        </div>
+      )}
+    </div>
   );
 
   return (
