@@ -81,19 +81,19 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
     const whiteNoise = (Math.random() * 2 - 1);
     const pinkNoise = Math.sin(t * Math.PI * 20) * (Math.random() * 2 - 1) * 0.5;
     
-    // Safe chaos generation - limit input to prevent tan() infinity
-    const chaosInput = Math.max(-1.5, Math.min(1.5, t * Math.PI * chaosLevel));
-    const chaos = Math.sin(chaosInput) * chaosLevel;
-    
-    const noiseMix = whiteNoise * (1 - noiseLevel * 0.5) + 
-                    pinkNoise * (noiseLevel * 0.3) + 
-                    chaos * 0.2;
+  // Safe chaos generation - make it more prominent
+  const chaosInput = Math.max(-1.5, Math.min(1.5, t * Math.PI * chaosLevel * 5)); // Amplify chaos
+  const chaos = Math.sin(chaosInput) * chaosLevel * 2; // Double the chaos effect
+  
+  const noiseMix = whiteNoise * (1 - noiseLevel * 0.3) + 
+                  pinkNoise * (noiseLevel * 0.5) + 
+                  chaos * (chaosLevel * 3); // Make chaos more prominent
     
     // Safe waveshaping
     const driveAmount = 1 + safeParam(synthParams.driveColor) * 3;
     const shaped = Math.tanh(noiseMix * driveAmount);
     
-    noiseData[i] = shaped * noiseLevel;
+    noiseData[i] = shaped * noiseLevel * 2; // Amplify noise for better audibility
   }
   
   const noiseSource = ctx.createBufferSource();
@@ -107,7 +107,10 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   // Sample & Hold creates stepped modulation effect
   sampleHoldLFO.type = 'square'; // Creates stepped effect
   sampleHoldLFO.frequency.setValueAtTime(sampleHoldRate, now);
-  sampleHoldGain.gain.setValueAtTime(100, now);
+  sampleHoldGain.gain.setValueAtTime(sampleHoldRate * 10, now); // Connect S&H to affect filter cutoff
+  
+  // Connect Sample & Hold to modulate filter frequency
+  sampleHoldLFO.connect(sampleHoldGain);
   
   // Filter routing - series vs parallel
   const filter1 = ctx.createBiquadFilter();
@@ -124,6 +127,11 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   filter1.Q.setValueAtTime(qValue, now);
   filter2.frequency.setValueAtTime(cutoffFreq * 0.5, now);
   filter2.Q.setValueAtTime(qValue * 0.8, now);
+  
+  // Connect Sample & Hold to modulate filter frequency for stepped effect
+  if (safeParam(synthParams.sampleHold) > 0.01) {
+    sampleHoldGain.connect(filter1.frequency);
+  }
   
   // Feedback loop
   const feedbackDelay = ctx.createDelay(0.1);
@@ -188,7 +196,7 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   // Oscillator envelopes with validation
   const oscLevel = 0.3;
   const osc2Level = 0.2 * safeParam(synthParams.crossMod);
-  const noiseLevel2 = safeParam(synthParams.noiseLayer) * 0.4;
+  const noiseLevel2 = safeParam(synthParams.noiseLayer) * 0.8; // Increase noise level
   
   // Set safe gain values
   oscGain.gain.setValueAtTime(0, now);
