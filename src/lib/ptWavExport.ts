@@ -5,6 +5,9 @@
 // - Correct RIFF/WAV header (fmt PCM=1, mono, 8-bit, 22168 Hz)
 // - Filename suggestion: <PresetName>_PT-F-3_22168Hz.wav
 
+import { normalizeMonoBuffer, floatTo16BitPCMWithTPDF } from './audio-normalize';
+import { encodeWavMono16 } from './wav-encode';
+
 type PTWavExportOptions = {
   srcSampleRate: number;    // e.g., 48000
   targetSampleRate?: number; // default 22168
@@ -141,8 +144,15 @@ export function exportPTWavV2(
     throw new Error('Empty buffer');
   }
 
-  // Conditioning
+  // Conditioning with enhanced normalization
   const dcFixed = removeDC(inputFloatMono);
+  
+  // Apply intelligent normalization for better quality
+  const normalizeResult = normalizeMonoBuffer(dcFixed, {
+    targetRmsDBFS: -12, // Slightly louder for PT samples
+    limiterThresholdDBFS: -0.5,
+    maxGainDB: 20
+  });
 
   // Resample to PT note F-3 target rate
   const resampled = linearResampleMono(dcFixed, srcSampleRate, targetSampleRate);
@@ -170,6 +180,57 @@ export function exportPTWavV2(
     return { bytes: wav, filename, blob };
   }
   return { bytes: wav, filename };
+}
+
+// Standard 16-bit WAV Export (44.1kHz) with enhanced processing
+export function exportStandardWav(
+  inputFloatMono: Float32Array,
+  opts: {
+    srcSampleRate: number;
+    targetSampleRate?: number;
+    presetName?: string;
+    returnBlob?: boolean;
+  }
+): { buffer: ArrayBuffer; filename: string; blob?: Blob; normalizeStats?: any } {
+  const {
+    srcSampleRate,
+    targetSampleRate = 44100,
+    presetName = 'ModularPerc',
+    returnBlob = true
+  } = opts;
+
+  if (inputFloatMono.length === 0) {
+    throw new Error('Empty buffer');
+  }
+
+  // Enhanced conditioning pipeline
+  let processed = removeDC(inputFloatMono);
+  
+  // Apply intelligent normalization
+  const normalizeStats = normalizeMonoBuffer(processed, {
+    targetRmsDBFS: -14,
+    limiterThresholdDBFS: -1,
+    maxGainDB: 24
+  });
+
+  // Resample if needed
+  if (srcSampleRate !== targetSampleRate) {
+    processed = linearResampleMono(processed, srcSampleRate, targetSampleRate);
+  }
+
+  // Convert to 16-bit with TPDF dithering
+  const int16Data = floatTo16BitPCMWithTPDF(processed);
+
+  // Encode to WAV
+  const buffer = encodeWavMono16(int16Data, targetSampleRate);
+
+  const filename = `${presetName}_16bit_${targetSampleRate}Hz.wav`;
+
+  if (returnBlob && typeof Blob !== 'undefined') {
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    return { buffer, filename, blob, normalizeStats };
+  }
+  return { buffer, filename, normalizeStats };
 }
 
 // Validation functions

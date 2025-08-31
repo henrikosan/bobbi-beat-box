@@ -4,7 +4,7 @@ import { TweakPanel } from './TweakPanel';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { TriggerButton } from './TriggerButton';
 import { generateModularSound } from './ModularSynthEngine';
-import { exportPTWavV2, validatePTWavExport } from '../lib/ptWavExport';
+import { exportPTWavV2, exportStandardWav, validatePTWavExport } from '../lib/ptWavExport';
 import { useToast } from '../hooks/use-toast';
 
 // Preset definitions
@@ -305,6 +305,63 @@ export const BobbiCussion: React.FC = () => {
     }
   }, [isExporting, renderAudioToBuffer, toast]);
 
+  // Standard 16-bit WAV Export Handler  
+  const handleExportStandardWav = useCallback(async (preset: Preset) => {
+    if (isExporting) return;
+    
+    setIsExporting(true);
+    
+    try {
+      // Render audio buffer
+      const audioBuffer = await renderAudioToBuffer(preset);
+      
+      if (!audioContextRef.current) throw new Error('AudioContext not available');
+      
+      // Export with enhanced processing
+      const { blob, filename, normalizeStats } = exportStandardWav(audioBuffer, {
+        srcSampleRate: audioContextRef.current.sampleRate,
+        targetSampleRate: 44100,
+        presetName: preset.name.replace(/[^a-zA-Z0-9]/g, ''),
+        returnBlob: true
+      });
+
+      if (!blob) throw new Error('Failed to create WAV blob');
+
+      // Download file
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Show success toast with normalization info
+      const gainInfo = normalizeStats?.applied 
+        ? ` (Gain: ${normalizeStats.gain.toFixed(1)}x)` 
+        : '';
+      
+      toast({
+        title: "16-bit WAV Export Complete",
+        description: `Exported ${filename}${gainInfo}`,
+      });
+
+      // Log normalization stats
+      console.log('Standard WAV Export Stats:', normalizeStats);
+      
+    } catch (error) {
+      console.error('Standard WAV Export failed:', error);
+      toast({
+        title: "Export Failed", 
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, renderAudioToBuffer, toast]);
+
   // AI Sound Design Logic
   const handleAiGenerate = useCallback(async () => {
     if (!aiPrompt.trim()) return;
@@ -414,7 +471,8 @@ export const BobbiCussion: React.FC = () => {
               presets={DEMO_PRESETS}
               selectedPreset={selectedPreset}
               onSelectPreset={handlePresetSelect}
-              onExportPreset={handleExportPTWav}
+              onExportPTWav={handleExportPTWav}
+              onExportStandardWav={handleExportStandardWav}
               isExporting={isExporting}
             />
           </div>

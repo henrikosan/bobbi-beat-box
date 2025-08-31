@@ -5,7 +5,8 @@ interface PresetBrowserProps {
   presets: Preset[];
   selectedPreset: Preset;
   onSelectPreset: (preset: Preset) => void;
-  onExportPreset?: (preset: Preset) => Promise<void>;
+  onExportPTWav?: (preset: Preset) => Promise<void>;
+  onExportStandardWav?: (preset: Preset) => Promise<void>;
   isExporting?: boolean;
 }
 
@@ -13,7 +14,8 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
   presets,
   selectedPreset,
   onSelectPreset,
-  onExportPreset,
+  onExportPTWav,
+  onExportStandardWav,
   isExporting = false,
 }) => {
   const drumPresets = presets.filter(p => p.category === 'drums');
@@ -37,20 +39,35 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
         </div>
       </button>
       
-      {/* Export Button */}
-      {onExportPreset && (
-        <div className="px-3 pb-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onExportPreset(preset);
-            }}
-            disabled={isExporting}
-            className="w-full px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Export → PT-WAV (8-bit @ 22,168 Hz, F-3)"
-          >
-            {isExporting ? 'Exporting...' : 'Export PT-WAV'}
-          </button>
+      {/* Export Buttons */}
+      {(onExportPTWav || onExportStandardWav) && (
+        <div className="px-3 pb-3 space-y-1">
+          {onExportPTWav && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExportPTWav(preset);
+              }}
+              disabled={isExporting}
+              className="w-full px-2 py-1 text-xs bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 rounded hover:bg-neon-cyan/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export → PT-WAV (8-bit @ 22,168 Hz, F-3)"
+            >
+              {isExporting ? 'Exporting...' : 'PT-WAV (8-bit)'}
+            </button>
+          )}
+          {onExportStandardWav && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExportStandardWav(preset);
+              }}
+              disabled={isExporting}
+              className="w-full px-2 py-1 text-xs bg-neon-yellow/20 text-neon-yellow border border-neon-yellow/30 rounded hover:bg-neon-yellow/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export → Standard WAV (16-bit @ 44.1 kHz)"
+            >
+              {isExporting ? 'Exporting...' : 'Standard WAV (16-bit)'}
+            </button>
+          )}
         </div>
       )}
     </div>
