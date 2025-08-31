@@ -407,9 +407,9 @@ export const BobbiCussion: React.FC = () => {
         </header>
 
         {/* Main interface */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Preset Browser - Left */}
-          <div className="rack-panel p-6">
+          <div className="rack-panel p-6 h-[600px]">
             <PresetBrowser
               presets={DEMO_PRESETS}
               selectedPreset={selectedPreset}
@@ -420,7 +420,7 @@ export const BobbiCussion: React.FC = () => {
           </div>
 
           {/* Tweak Panel - Center */}
-          <div className="rack-panel p-6">
+          <div className="rack-panel p-6 h-[600px]">
             <TweakPanel
               parameters={synthParams}
               onParameterChange={handleParamChange}
@@ -428,9 +428,9 @@ export const BobbiCussion: React.FC = () => {
           </div>
 
           {/* Waveform, Trigger & AI - Right */}
-          <div className="space-y-4">
-            {/* Waveform - Smaller */}
-            <div className="rack-panel p-4 h-40">
+          <div className="space-y-4 h-[600px] flex flex-col">
+            {/* Waveform */}
+            <div className="rack-panel p-4 h-48 flex-shrink-0">
               <WaveformVisualizer
                 waveformData={waveformRef.current}
                 isPlaying={isPlaying}
@@ -438,7 +438,7 @@ export const BobbiCussion: React.FC = () => {
             </div>
             
             {/* Trigger */}
-            <div className="rack-panel p-4 h-32">
+            <div className="rack-panel p-4 h-40 flex-shrink-0">
               <TriggerButton
                 onTrigger={handleTrigger}
                 isPlaying={isPlaying}
@@ -447,29 +447,29 @@ export const BobbiCussion: React.FC = () => {
             </div>
 
             {/* AI Sound Design */}
-            <div className="rack-panel p-4 flex-1">
+            <div className="rack-panel p-4 flex-1 min-h-0">
               <h3 className="text-sm font-semibold text-neon-cyan mb-3 flex items-center">
                 <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
                 AI Sound Design
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3 h-full flex flex-col">
                 <input
                   type="text"
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   onKeyDown={handleAiPromptKeyDown}
                   placeholder="'resonant industrial snare'"
-                  className="w-full bg-input text-foreground px-3 py-2 rounded border border-border focus:border-primary focus:outline-none text-sm"
+                  className="w-full bg-input text-foreground px-3 py-2 rounded border border-border focus:border-primary focus:outline-none text-sm flex-shrink-0"
                   disabled={isGenerating}
                 />
                 <button 
                   onClick={handleAiGenerate}
                   disabled={!aiPrompt.trim() || isGenerating}
-                  className="w-full px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="w-full px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex-shrink-0"
                 >
                   {isGenerating ? 'Generating...' : 'Generate'}
                 </button>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground flex-shrink-0">
                   Describe your sound for AI preset matching
                 </p>
               </div>
