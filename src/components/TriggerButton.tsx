@@ -49,7 +49,7 @@ export const TriggerButton: React.FC<TriggerButtonProps> = ({
         onMouseDown={onTrigger}
         className={`w-32 h-32 rounded-full border-4 transition-all duration-150 font-bold text-2xl select-none ${
           isPlaying || keyPressed
-            ? 'bg-primary border-primary text-primary-foreground glow-cyan scale-95'
+            ? 'bg-primary border-primary text-primary-foreground shadow-lg scale-95'
             : 'bg-panel-medium border-primary text-primary hover:bg-panel-light hover:border-primary/80 hover:scale-105'
         }`}
       >

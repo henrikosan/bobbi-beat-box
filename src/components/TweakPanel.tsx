@@ -18,9 +18,9 @@ interface KnobProps {
 const Knob: React.FC<KnobProps> = ({ label, value, onChange, color, min = '', max = '' }) => {
   const rotation = (value * 270) - 135; // -135° to +135°
   const colorClasses = {
-    cyan: 'border-neon-cyan glow-cyan',
-    magenta: 'border-neon-magenta glow-magenta', 
-    yellow: 'border-neon-yellow glow-yellow'
+    cyan: 'border-neon-cyan',
+    magenta: 'border-neon-magenta', 
+    yellow: 'border-neon-yellow'
   };
 
   return (

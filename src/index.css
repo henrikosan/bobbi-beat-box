@@ -132,7 +132,6 @@ Dark modular rack aesthetic with neon patch cable colors */
   
   /* Neon glow effects for active states */
   .glow-cyan {
-    @apply shadow-[var(--shadow-glow)] animate-pulse;
     box-shadow: 0 0 20px hsl(var(--neon-cyan) / 0.4), 0 0 40px hsl(var(--neon-cyan) / 0.2);
   }
   
@@ -166,6 +165,6 @@ Dark modular rack aesthetic with neon patch cable colors */
   }
   
   .modular-knob.active {
-    @apply border-primary glow-cyan;
+    @apply border-primary;
   }
 }

@@ -20,7 +20,7 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
       onClick={() => onSelectPreset(preset)}
       className={`w-full p-3 rounded text-left transition-all duration-200 ${
         selectedPreset.id === preset.id
-          ? 'bg-primary/20 border border-primary glow-cyan'
+          ? 'bg-primary/20 border border-primary shadow-lg'
           : 'bg-panel-medium hover:bg-panel-light border border-border'
       }`}
     >

@@ -153,7 +153,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
         <canvas
           ref={canvasRef}
           className={`w-full h-full rounded border border-border transition-all duration-300 ${
-            isPlaying ? 'animate-waveform-bounce' : ''
+            isPlaying ? 'shadow-lg' : ''
           }`}
         />
         
