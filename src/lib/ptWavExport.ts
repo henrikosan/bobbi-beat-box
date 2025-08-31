@@ -37,7 +37,7 @@ function removeDC(samples: Float32Array): Float32Array {
   return tmp;
 }
 
-function linearResampleMono(input: Float32Array, srcRate: number, dstRate: number): Float32Array {
+export function linearResampleMono(input: Float32Array, srcRate: number, dstRate: number): Float32Array {
   if (srcRate === dstRate) return input.slice();
   const ratio = dstRate / srcRate;
   const outLength = Math.max(1, Math.floor(input.length * ratio));
@@ -73,7 +73,7 @@ function floatTo8BitUnsignedPCM(input: Float32Array): Uint8Array {
   return out;
 }
 
-function applyDitherThenQuantize(input: Float32Array, bits: number = 8): Uint8Array {
+export function applyDitherThenQuantize(input: Float32Array, bits: number = 8): Uint8Array {
   const lsbNorm = 1 / (Math.pow(2, bits - 1)); // for 8-bit signed scale: 1/128
   const dithered = new Float32Array(input.length);
   for (let i = 0; i < input.length; i++) {
@@ -83,7 +83,7 @@ function applyDitherThenQuantize(input: Float32Array, bits: number = 8): Uint8Ar
   return floatTo8BitUnsignedPCM(dithered);
 }
 
-function writeWavU8Mono(pcmU8: Uint8Array, sampleRate: number): Uint8Array {
+export function writeWavU8Mono(pcmU8: Uint8Array, sampleRate: number): Uint8Array {
   // RIFF header sizes
   const numChannels = 1;
   const bitsPerSample = 8;

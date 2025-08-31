@@ -4,7 +4,16 @@ import { TweakPanel } from './TweakPanel';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { TriggerButton } from './TriggerButton';
 import { generateModularSound } from './ModularSynthEngine';
-import { exportPTWavV2, exportStandardWav, validatePTWavExport } from '../lib/ptWavExport';
+import { 
+  exportPTWavV2, 
+  exportStandardWav, 
+  validatePTWavExport,
+  linearResampleMono,
+  applyDitherThenQuantize,
+  writeWavU8Mono
+} from '../lib/ptWavExport';
+import { normalizeMonoBuffer, floatTo16BitPCMWithTPDF } from '../lib/audio-normalize';
+import { encodeWavMono16 } from '../lib/wav-encode';
 import { useToast } from '../hooks/use-toast';
 
 // Preset definitions
@@ -238,129 +247,86 @@ export const BobbiCussion: React.FC = () => {
     return renderedBuffer.getChannelData(0); // Get mono channel
   }, []);
 
-  // PT-WAV Export Handler with validation
-  const handleExportPTWav = useCallback(async (preset: Preset) => {
-    if (isExporting) return;
+  // Enhanced WAV Export using integrated audio utilities
+  const exportWav = useCallback(async (preset: Preset, opts: { 
+    filename?: string; 
+    targetRmsDBFS?: number;
+    format?: 'standard' | 'pt-wav';
+  } = {}): Promise<any> => {
+    if (!audioContextRef.current) {
+      throw new Error("Audio engine not ready");
+    }
     
     setIsExporting(true);
     
     try {
-      // Step 2: Render & Conditioning Pipeline
-      const audioBuffer = await renderAudioToBuffer(preset);
-      
-      if (!audioContextRef.current) throw new Error('AudioContext not available');
-      
-      // Step 3-4: Resample & Quantize + WAV Container Writing
-      const { blob, filename } = exportPTWavV2(audioBuffer, {
-        srcSampleRate: audioContextRef.current.sampleRate,
-        targetSampleRate: 22168, // PT-F-3 target rate
-        presetName: preset.name.replace(/[^a-zA-Z0-9]/g, ''), // Clean name for filename
-        returnBlob: true
+      // 1) Render to buffer
+      const renderDurationSecs = Math.max(0.1, 0.1 + (preset.parameters.envelopeShape * 0.5));
+      const render = await renderAudioToBuffer(preset);
+
+      // 2) Normalize in place
+      const info = normalizeMonoBuffer(render, { 
+        targetRmsDBFS: opts.targetRmsDBFS || -14,
+        limiterThresholdDBFS: -1,
+        maxGainDB: 24
       });
 
-      if (!blob) throw new Error('Failed to create WAV blob');
+      let wav: ArrayBuffer;
+      let filename: string;
 
-      // Step 6: Filenames & Validation - Auto-test after export
-      const arrayBuffer = await blob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      const validation = validatePTWavExport(bytes);
-      
-      if (!validation.valid) {
-        console.warn('PT-WAV validation warnings:', validation.errors);
-        toast({
-          title: "Export Warning",
-          description: `WAV exported with warnings: ${validation.errors.join(', ')}`,
-          variant: "destructive",
-        });
+      if (opts.format === 'pt-wav') {
+        // PT-WAV Export (8-bit, 22.168kHz)
+        const resampled = linearResampleMono(render, audioContextRef.current.sampleRate, 22168);
+        const pcmU8 = applyDitherThenQuantize(resampled, 8);
+        wav = writeWavU8Mono(pcmU8, 22168).buffer;
+        filename = opts.filename || `${preset.name.replace(/[^a-zA-Z0-9]/g, '')}_PT-F-3_22168Hz.wav`;
+      } else {
+        // Standard 16-bit WAV Export
+        const pcm16 = floatTo16BitPCMWithTPDF(render);
+        wav = encodeWavMono16(pcm16, 44100);
+        filename = opts.filename || `BobbiCussion_${preset.name.replace(/[^a-zA-Z0-9]/g, '')}_44k.wav`;
       }
 
-      // Step 5: UI Integration - Download file
+      // 4) Trigger file download
+      const blob = new Blob([wav], { type: "audio/wav" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = filename;
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      // Show success toast with exact filename
+      // Show success toast
+      const gainInfo = info.applied ? ` (Gain: ${info.gain.toFixed(1)}x)` : '';
       toast({
-        title: "PT-WAV Export Complete",
-        description: `Exported ${filename}`,
-      });
-
-      // Log validation stats for dev notes
-      console.log('PT-WAV Export Stats:', validation.stats);
-      
-    } catch (error) {
-      console.error('PT-WAV Export failed:', error);
-      toast({
-        title: "Export Failed", 
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-        variant: "destructive",
-      });
-    } finally {
-      setIsExporting(false);
-    }
-  }, [isExporting, renderAudioToBuffer, toast]);
-
-  // Standard 16-bit WAV Export Handler  
-  const handleExportStandardWav = useCallback(async (preset: Preset) => {
-    if (isExporting) return;
-    
-    setIsExporting(true);
-    
-    try {
-      // Render audio buffer
-      const audioBuffer = await renderAudioToBuffer(preset);
-      
-      if (!audioContextRef.current) throw new Error('AudioContext not available');
-      
-      // Export with enhanced processing
-      const { blob, filename, normalizeStats } = exportStandardWav(audioBuffer, {
-        srcSampleRate: audioContextRef.current.sampleRate,
-        targetSampleRate: 44100,
-        presetName: preset.name.replace(/[^a-zA-Z0-9]/g, ''),
-        returnBlob: true
-      });
-
-      if (!blob) throw new Error('Failed to create WAV blob');
-
-      // Download file
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      // Show success toast with normalization info
-      const gainInfo = normalizeStats?.applied 
-        ? ` (Gain: ${normalizeStats.gain.toFixed(1)}x)` 
-        : '';
-      
-      toast({
-        title: "16-bit WAV Export Complete",
+        title: opts.format === 'pt-wav' ? "PT-WAV Export Complete" : "WAV Export Complete",
         description: `Exported ${filename}${gainInfo}`,
       });
 
-      // Log normalization stats
-      console.log('Standard WAV Export Stats:', normalizeStats);
+      return { ...info, durationSec: render.length / audioContextRef.current.sampleRate };
       
     } catch (error) {
-      console.error('Standard WAV Export failed:', error);
+      console.error('WAV Export failed:', error);
       toast({
         title: "Export Failed", 
         description: error instanceof Error ? error.message : 'Unknown error occurred',
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsExporting(false);
     }
-  }, [isExporting, renderAudioToBuffer, toast]);
+  }, [renderAudioToBuffer, toast]);
+
+  // PT-WAV Export Handler 
+  const handleExportPTWav = useCallback(async (preset: Preset) => {
+    return exportWav(preset, { format: 'pt-wav', targetRmsDBFS: -12 });
+  }, [exportWav]);
+
+  // Standard WAV Export Handler  
+  const handleExportStandardWav = useCallback(async (preset: Preset) => {
+    return exportWav(preset, { format: 'standard', targetRmsDBFS: -14 });
+  }, [exportWav]);
 
   // AI Sound Design Logic
   const handleAiGenerate = useCallback(async () => {
