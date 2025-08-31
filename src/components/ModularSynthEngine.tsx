@@ -104,6 +104,7 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   const sampleHoldRate = 1 + safeParam(synthParams.sampleHold) * 20;
   const sampleHoldLFO = ctx.createOscillator();
   const sampleHoldGain = ctx.createGain();
+  // Sample & Hold creates stepped modulation effect
   sampleHoldLFO.type = 'square'; // Creates stepped effect
   sampleHoldLFO.frequency.setValueAtTime(sampleHoldRate, now);
   sampleHoldGain.gain.setValueAtTime(100, now);
@@ -111,8 +112,6 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   // Filter routing - series vs parallel
   const filter1 = ctx.createBiquadFilter();
   const filter2 = ctx.createBiquadFilter();
-  const filterRouteMix = ctx.createGain();
-  const filterBypass = ctx.createGain();
   
   filter1.type = 'lowpass';
   filter2.type = 'highpass';
@@ -126,13 +125,6 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   filter2.frequency.setValueAtTime(cutoffFreq * 0.5, now);
   filter2.Q.setValueAtTime(qValue * 0.8, now);
   
-  filterRouteMix.gain.setValueAtTime(routeAmount, now);
-  filterBypass.gain.setValueAtTime(1 - routeAmount, now);
-  
-  // Connect Sample & Hold to filter frequency
-  sampleHoldLFO.connect(sampleHoldGain);
-  sampleHoldGain.connect(filter1.frequency);
-  
   // Feedback loop
   const feedbackDelay = ctx.createDelay(0.1);
   const feedbackGain = ctx.createGain();
@@ -144,37 +136,47 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   // Master gain
   const masterGain = ctx.createGain();
   
-  // Connect audio graph with modular routing
+  // Connect audio graph with simplified routing
   osc.connect(oscGain);
   osc2.connect(osc2Gain);
   noiseSource.connect(noiseGain);
   
-  // Ring modulation: multiply osc1 and osc2
+  // Simple ring modulation using GainNode
+  const ringMix = ctx.createGain();
+  ringMix.gain.setValueAtTime(1 - ringModDepth, now);
+  
   if (ringModDepth > 0.01) {
-    osc.connect(ringModGain);
-    osc2.connect(ringModGain.gain); // Ring mod effect
+    // Create proper ring mod by using gain nodes
+    const ringModulator = ctx.createGain();
+    ringModulator.gain.setValueAtTime(ringModDepth, now);
+    
+    osc.connect(ringModulator);
+    osc2.connect(ringModulator);
+    ringModulator.connect(ringMix);
   }
   
-  // Complex filter routing
-  oscGain.connect(filter1);
-  oscGain.connect(filterBypass);
-  
+  // Main signal path
+  oscGain.connect(ringMix);
   osc2Gain.connect(filter1);
-  ringModGain.connect(filter1);
   noiseGain.connect(filter1);
+  ringMix.connect(filter1);
   
-  // Filter routing: series vs parallel
-  filter1.connect(filter2);
-  filter1.connect(filterRouteMix);
-  filter2.connect(filterBypass);
+  // Simple filter routing
+  if (routeAmount > 0.5) {
+    // Series routing
+    filter1.connect(filter2);
+    filter2.connect(masterGain);
+  } else {
+    // Direct routing
+    filter1.connect(masterGain);
+  }
   
-  filterRouteMix.connect(masterGain);
-  filterBypass.connect(masterGain);
-  
-  // Feedback loop
-  masterGain.connect(feedbackDelay);
-  feedbackDelay.connect(feedbackGain);
-  feedbackGain.connect(filter1);
+  // Feedback loop (simplified)
+  if (feedbackAmount > 0.01) {
+    masterGain.connect(feedbackDelay);
+    feedbackDelay.connect(feedbackGain);
+    feedbackGain.connect(filter1);
+  }
   
   masterGain.connect(ctx.destination);
   
