@@ -52,29 +52,32 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   const envelopeCV = ctx.createGain();
   const filterCV = ctx.createGain();
   
-  // Create complex envelope shapes for "pumping" character
-  const attackTime = Math.max(0.001, 0.002 + safeParam(synthParams.envelopeShape) * 0.05);
-  const decayTime = attackTime * (2 + safeParam(synthParams.envelopeShape) * 6);
-  const sustainLevel = selectedPreset.category === 'drums' ? 0.1 : safeParam(synthParams.envelopeShape) * 0.4;
-  const releaseTime = duration * (0.3 + safeParam(synthParams.envelopeShape) * 0.5);
+  // Create complex envelope shapes for "pumping" character - ensure proper timing for offline context
+  const attackTime = Math.max(0.002, 0.005 + safeParam(synthParams.envelopeShape) * 0.08);
+  const decayTime = attackTime * (3 + safeParam(synthParams.envelopeShape) * 8);
+  const sustainLevel = selectedPreset.category === 'drums' ? 0.05 : safeParam(synthParams.envelopeShape) * 0.5;
+  const releaseTime = duration * (0.4 + safeParam(synthParams.envelopeShape) * 0.6);
   
   // VOLTAGE-CONTROLLED AMPLIFIER (VCA) with pumping action
   const vca = ctx.createGain();
   vca.gain.setValueAtTime(0, now);
   
-  // Pumping envelope with voltage-style control curves
+  // Envelope automation with proper offline context timing
   if (selectedPreset.category === 'drums') {
     // Punchy drum envelope with sharp attack
-    vca.gain.linearRampToValueAtTime(0.9, now + attackTime);
+    vca.gain.setValueAtTime(0, now);
+    vca.gain.linearRampToValueAtTime(1.0, now + attackTime);
     vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.05); // Earlier fade to prevent artifacts
-    vca.gain.linearRampToValueAtTime(0, now + duration); // Final clean cut
+    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.02);
+    vca.gain.setValueAtTime(0, now + duration);
   } else {
     // More sustained envelope for sounds with voltage-style curves
-    vca.gain.linearRampToValueAtTime(0.8, now + attackTime);
-    vca.gain.exponentialRampToValueAtTime(Math.max(0.01, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.1); // Earlier fade to prevent artifacts
-    vca.gain.linearRampToValueAtTime(0, now + duration); // Final clean cut
+    vca.gain.setValueAtTime(0, now);
+    vca.gain.linearRampToValueAtTime(0.9, now + attackTime);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel * 0.3), now + duration - releaseTime);
+    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.01);
+    vca.gain.setValueAtTime(0, now + duration);
   }
   
   // LOW FREQUENCY OSCILLATOR (LFO) - Voltage-controlled modulation
@@ -264,15 +267,17 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   vco1Gain.gain.setValueAtTime(vco1Level, now);
   vco2Gain.gain.setValueAtTime(vco2Level, now);
   
-  // Noise envelope - different curve for drums vs sounds
+  // Noise envelope - different curve for drums vs sounds with proper offline timing
   noiseGain.gain.setValueAtTime(0, now);
-  noiseGain.gain.linearRampToValueAtTime(noiseLevel2, now + attackTime * 0.5);
+  noiseGain.gain.linearRampToValueAtTime(noiseLevel2, now + attackTime * 0.8);
   if (selectedPreset.category === 'drums') {
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.4);
+    noiseGain.gain.exponentialRampToValueAtTime(Math.max(0.001, noiseLevel2 * 0.1), now + duration * 0.5);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.01);
   } else {
-    noiseGain.gain.exponentialRampToValueAtTime(noiseLevel2 * 0.3, now + duration * 0.7);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    noiseGain.gain.exponentialRampToValueAtTime(Math.max(0.001, noiseLevel2 * 0.4), now + duration - releaseTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.01);
   }
+  noiseGain.gain.setValueAtTime(0, now + duration);
   
   // Voltage-style frequency sweeps
   const freqSweepAmount = safeParam(synthParams.envelopeShape) * baseFreq * 0.5;
@@ -281,10 +286,17 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
     vco1.frequency.exponentialRampToValueAtTime(Math.max(20, baseFreq - freqSweepAmount), now + duration * 0.8);
   }
   
-  // Filter envelope - creates "pumping" character
-  const filterSweep = cutoffBase * (0.5 + safeParam(synthParams.envelopeShape) * 2);
-  vcf1.frequency.linearRampToValueAtTime(filterSweep, now + attackTime);
-  vcf1.frequency.exponentialRampToValueAtTime(Math.max(80, cutoffBase * 0.3), now + duration);
+  // Filter envelope - creates "pumping" character with proper offline timing
+  const filterSweep = cutoffBase * (0.8 + safeParam(synthParams.envelopeShape) * 2.5);
+  vcf1.frequency.setValueAtTime(cutoffBase * 0.5, now);
+  vcf1.frequency.linearRampToValueAtTime(filterSweep, now + attackTime * 1.2);
+  vcf1.frequency.exponentialRampToValueAtTime(Math.max(80, cutoffBase * 0.4), now + duration - releaseTime);
+  vcf1.frequency.exponentialRampToValueAtTime(Math.max(80, cutoffBase * 0.2), now + duration - 0.01);
+  
+  // Secondary filter envelope
+  vcf2.frequency.setValueAtTime(cutoffBase * 0.7, now);
+  vcf2.frequency.linearRampToValueAtTime(filterSweep * 1.2, now + attackTime * 0.8);
+  vcf2.frequency.exponentialRampToValueAtTime(Math.max(80, cutoffBase * 0.6), now + duration - 0.01);
   
   // Start all oscillators with slight timing offsets (analog behavior)
   const startOffset = 0.001;
