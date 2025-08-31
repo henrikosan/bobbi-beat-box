@@ -1,4 +1,5 @@
-// Advanced modular synthesis engine with complex routing and cross-modulation
+// Advanced modular synthesis engine with voltage-controlled modulation
+// Inspired by classic semi-modular synthesizers - "the sound of voltage itself"
 export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, selectedPreset: any) => {
   const now = ctx.currentTime;
   const duration = Math.max(0.1, 0.1 + (synthParams.envelopeShape * 0.5));
@@ -10,232 +11,298 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
     return Math.max(min, Math.min(max, num));
   };
   
-  // Base frequency calculation with validation
+  // Base frequency calculation with modular character
   let baseFreq = selectedPreset.category === 'sounds' 
     ? 150 + (safeParam(synthParams.fmAmount) * 800)
     : 60;
-  baseFreq = Math.max(20, Math.min(2000, baseFreq)); // Clamp to reasonable range
+  baseFreq = Math.max(20, Math.min(2000, baseFreq));
   
-  // Create primary oscillator with validated frequency
-  const osc = ctx.createOscillator();
-  const oscGain = ctx.createGain();
+  // VOLTAGE-CONTROLLED OSCILLATORS - Classic modular style
+  const vco1 = ctx.createOscillator();
+  const vco2 = ctx.createOscillator();
+  const vco1Gain = ctx.createGain();
+  const vco2Gain = ctx.createGain();
   
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(baseFreq, now);
+  // VCO1: Primary oscillator with voltage control
+  vco1.type = 'sawtooth'; // Classic analog waveform
+  vco1.frequency.setValueAtTime(baseFreq, now);
   
-  // Create a second oscillator for harmonic content
-  const osc2 = ctx.createOscillator();
-  const osc2Gain = ctx.createGain();
+  // VCO2: Detuned oscillator for thickness (classic analog technique)
+  const detune = 1 + (safeParam(synthParams.crossMod) * 0.1 - 0.05); // ±5% detune
+  vco2.type = 'square'; // Different waveform for harmonic content
+  vco2.frequency.setValueAtTime(baseFreq * detune, now);
   
-  const harmonicFreq = baseFreq * (1 + safeParam(synthParams.crossMod, 0, 2));
-  // Wave morphing between different waveforms
-  const waveTypes = ['sine', 'square', 'sawtooth', 'triangle'];
-  const waveIndex = Math.floor(safeParam(synthParams.waveMorph) * (waveTypes.length - 0.01));
-  osc2.type = waveTypes[waveIndex] as OscillatorType;
-  osc2.frequency.setValueAtTime(harmonicFreq, now);
+  // VOLTAGE-CONTROLLED FILTER (VCF) - The heart of modular sound
+  const vcf1 = ctx.createBiquadFilter();
+  const vcf2 = ctx.createBiquadFilter();
   
-  // LFO for modulation
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  const lfoRate = 0.1 + safeParam(synthParams.lfoRate) * 10; // 0.1 to 10 Hz
-  const lfoDepth = safeParam(synthParams.lfoRate) * 20;
+  // Dual filter configuration for complex filtering
+  vcf1.type = 'lowpass';
+  vcf2.type = 'bandpass';
   
-  lfo.type = 'sine';
-  lfo.frequency.setValueAtTime(lfoRate, now);
-  lfoGain.gain.setValueAtTime(lfoDepth, now);
+  const cutoffBase = Math.max(80, 200 + safeParam(synthParams.resonance) * 3000);
+  const resonanceQ = Math.max(0.1, 1 + safeParam(synthParams.resonance) * 25); // Higher Q for screaming resonance
   
-  // Connect LFO to oscillator frequency for vibrato
-  lfo.connect(lfoGain);
-  lfoGain.connect(osc.frequency);
+  vcf1.frequency.setValueAtTime(cutoffBase, now);
+  vcf1.Q.setValueAtTime(resonanceQ, now);
+  vcf2.frequency.setValueAtTime(cutoffBase * 1.5, now);
+  vcf2.Q.setValueAtTime(resonanceQ * 0.7, now);
   
-  // Ring modulator
-  const ringModGain = ctx.createGain();
-  const ringModDepth = safeParam(synthParams.ringMod);
-  ringModGain.gain.setValueAtTime(ringModDepth, now);
+  // ENVELOPE GENERATORS - "Pumping envelopes" with voltage control
+  const envelopeCV = ctx.createGain();
+  const filterCV = ctx.createGain();
   
-  // FM oscillator with safe parameters
+  // Create complex envelope shapes for "pumping" character
+  const attackTime = Math.max(0.001, 0.002 + safeParam(synthParams.envelopeShape) * 0.05);
+  const decayTime = attackTime * (2 + safeParam(synthParams.envelopeShape) * 6);
+  const sustainLevel = selectedPreset.category === 'drums' ? 0.1 : safeParam(synthParams.envelopeShape) * 0.4;
+  const releaseTime = duration * (0.3 + safeParam(synthParams.envelopeShape) * 0.5);
+  
+  // VOLTAGE-CONTROLLED AMPLIFIER (VCA) with pumping action
+  const vca = ctx.createGain();
+  vca.gain.setValueAtTime(0, now);
+  
+  // Pumping envelope with voltage-style control curves
+  if (selectedPreset.category === 'drums') {
+    // Punchy drum envelope with sharp attack
+    vca.gain.linearRampToValueAtTime(0.9, now + attackTime);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
+    vca.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  } else {
+    // More sustained envelope for sounds with voltage-style curves
+    vca.gain.linearRampToValueAtTime(0.8, now + attackTime);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.01, sustainLevel), now + attackTime + decayTime);
+    vca.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  }
+  
+  // LOW FREQUENCY OSCILLATOR (LFO) - Voltage-controlled modulation
+  const lfo1 = ctx.createOscillator(); // Primary LFO
+  const lfo2 = ctx.createOscillator(); // Secondary LFO for complex modulation
+  const lfo1Gain = ctx.createGain();
+  const lfo2Gain = ctx.createGain();
+  
+  const lfoRate1 = 0.1 + safeParam(synthParams.lfoRate) * 15; // Wide LFO range
+  const lfoRate2 = lfoRate1 * (1.618); // Golden ratio for complex beating
+  const lfoDepth1 = safeParam(synthParams.lfoRate) * 30;
+  const lfoDepth2 = safeParam(synthParams.lfoRate) * 20;
+  
+  lfo1.type = 'triangle'; // Smooth modulation
+  lfo2.type = 'sine';
+  lfo1.frequency.setValueAtTime(lfoRate1, now);
+  lfo2.frequency.setValueAtTime(lfoRate2, now);
+  lfo1Gain.gain.setValueAtTime(lfoDepth1, now);
+  lfo2Gain.gain.setValueAtTime(lfoDepth2, now);
+  
+  // Cross-modulate LFOs for complex voltage-style behavior
+  lfo1.connect(lfo1Gain);
+  lfo2.connect(lfo2Gain);
+  
+  // FREQUENCY MODULATION - "Razor-sharp FM chirps"
   const fmOsc = ctx.createOscillator();
   const fmGain = ctx.createGain();
   
-  const fmFreq = baseFreq * (2 + safeParam(synthParams.fmAmount) * 6);
-  const fmDepth = safeParam(synthParams.fmAmount) * 50;
+  const fmRatio = 2 + safeParam(synthParams.fmAmount) * 8; // Classic FM ratios
+  const fmIndex = safeParam(synthParams.fmAmount) * 100; // Deep FM for razor-sharp sounds
   
-  fmOsc.frequency.setValueAtTime(fmFreq, now);
-  fmGain.gain.setValueAtTime(fmDepth, now);
+  fmOsc.type = 'sine'; // Pure sine for clean FM
+  fmOsc.frequency.setValueAtTime(baseFreq * fmRatio, now);
+  fmGain.gain.setValueAtTime(fmIndex, now);
   
-  // Connect FM properly
-  fmOsc.connect(fmGain);
-  fmGain.connect(osc.frequency);
+  // Envelope control for FM - creates "chirp" effects
+  const fmEnvelope = ctx.createGain();
+  fmEnvelope.gain.setValueAtTime(1, now);
+  fmEnvelope.gain.exponentialRampToValueAtTime(0.1, now + attackTime * 3);
   
-  // Safe noise generation
+  // NOISE GENERATORS - "Layers of manipulated noise"
   const noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
   const noiseData = noiseBuffer.getChannelData(0);
   
   const noiseLevel = safeParam(synthParams.noiseLayer);
-  const chaosLevel = safeParam(synthParams.chaosLevel, 0, 0.5); // Limit chaos to prevent infinity
+  const chaosLevel = safeParam(synthParams.chaosLevel, 0, 0.8);
   
+  // Generate complex noise layers
   for (let i = 0; i < noiseData.length; i++) {
     const t = i / noiseData.length;
     
-    // Basic noise sources
+    // Multiple noise sources for complex texture
     const whiteNoise = (Math.random() * 2 - 1);
-    const pinkNoise = Math.sin(t * Math.PI * 20) * (Math.random() * 2 - 1) * 0.5;
+    const pinkNoise = Math.sin(t * Math.PI * 40) * (Math.random() * 2 - 1) * 0.7;
+    const digitalNoise = Math.sign(Math.sin(t * Math.PI * 100 * chaosLevel)) * Math.random();
     
-  // Safe chaos generation - make it more prominent
-  const chaosInput = Math.max(-1.5, Math.min(1.5, t * Math.PI * chaosLevel * 5)); // Amplify chaos
-  const chaos = Math.sin(chaosInput) * chaosLevel * 2; // Double the chaos effect
-  
-  const noiseMix = whiteNoise * (1 - noiseLevel * 0.3) + 
-                  pinkNoise * (noiseLevel * 0.5) + 
-                  chaos * (chaosLevel * 3); // Make chaos more prominent
+    // Voltage-controlled noise manipulation
+    const voltageNoise = Math.tanh(whiteNoise * (1 + chaosLevel * 3)) * 0.8;
     
-    // Safe waveshaping
-    const driveAmount = 1 + safeParam(synthParams.driveColor) * 3;
-    const shaped = Math.tanh(noiseMix * driveAmount);
+    // Layer and shape the noise
+    const noiseMix = whiteNoise * (1 - noiseLevel * 0.4) + 
+                    pinkNoise * (noiseLevel * 0.6) + 
+                    digitalNoise * (chaosLevel * 0.4) +
+                    voltageNoise * (noiseLevel * 0.3);
     
-    noiseData[i] = shaped * noiseLevel * 2; // Amplify noise for better audibility
+    // Apply analog-style saturation
+    noiseData[i] = Math.tanh(noiseMix * (1 + safeParam(synthParams.driveColor) * 2));
   }
   
   const noiseSource = ctx.createBufferSource();
   const noiseGain = ctx.createGain();
+  const noiseFilter = ctx.createBiquadFilter();
+  
   noiseSource.buffer = noiseBuffer;
   
-  // Sample & Hold for stepped modulation
-  const sampleHoldRate = 1 + safeParam(synthParams.sampleHold) * 20;
+  // Voltage-controlled noise filtering
+  noiseFilter.type = 'highpass';
+  noiseFilter.frequency.setValueAtTime(100 + safeParam(synthParams.filterRoute) * 2000, now);
+  noiseFilter.Q.setValueAtTime(1 + safeParam(synthParams.resonance) * 10, now);
+  
+  // SAMPLE & HOLD - Classic modular technique
+  const sampleHoldRate = 2 + safeParam(synthParams.sampleHold) * 50;
   const sampleHoldLFO = ctx.createOscillator();
   const sampleHoldGain = ctx.createGain();
-  // Sample & Hold creates stepped modulation effect
-  sampleHoldLFO.type = 'square'; // Creates stepped effect
+  
+  sampleHoldLFO.type = 'square'; // Creates stepped voltage levels
   sampleHoldLFO.frequency.setValueAtTime(sampleHoldRate, now);
-  sampleHoldGain.gain.setValueAtTime(sampleHoldRate * 10, now); // Connect S&H to affect filter cutoff
+  sampleHoldGain.gain.setValueAtTime(sampleHoldRate * 15, now);
   
-  // Connect Sample & Hold to modulate filter frequency
-  sampleHoldLFO.connect(sampleHoldGain);
+  // VOLTAGE-CONTROLLED MIXER - Complex signal routing
+  const mixer1 = ctx.createGain();
+  const mixer2 = ctx.createGain();
+  const mixBalance = safeParam(synthParams.filterRoute);
   
-  // Filter routing - series vs parallel
-  const filter1 = ctx.createBiquadFilter();
-  const filter2 = ctx.createBiquadFilter();
+  mixer1.gain.setValueAtTime(1 - mixBalance, now);
+  mixer2.gain.setValueAtTime(mixBalance, now);
   
-  filter1.type = 'lowpass';
-  filter2.type = 'highpass';
+  // RING MODULATOR - For metallic textures
+  const ringMod = ctx.createGain();
+  const ringModDepth = safeParam(synthParams.ringMod);
   
-  const cutoffFreq = Math.max(80, 200 + safeParam(synthParams.resonance) * 2000);
-  const qValue = Math.max(0.1, 1 + safeParam(synthParams.resonance) * 15);
-  const routeAmount = safeParam(synthParams.filterRoute);
-  
-  filter1.frequency.setValueAtTime(cutoffFreq, now);
-  filter1.Q.setValueAtTime(qValue, now);
-  filter2.frequency.setValueAtTime(cutoffFreq * 0.5, now);
-  filter2.Q.setValueAtTime(qValue * 0.8, now);
-  
-  // Connect Sample & Hold to modulate filter frequency for stepped effect
-  if (safeParam(synthParams.sampleHold) > 0.01) {
-    sampleHoldGain.connect(filter1.frequency);
-  }
-  
-  // Feedback loop
+  // FEEDBACK LOOP - Classic analog feedback
   const feedbackDelay = ctx.createDelay(0.1);
   const feedbackGain = ctx.createGain();
-  const feedbackAmount = safeParam(synthParams.feedback, 0, 0.9); // Limit to prevent runaway
+  const feedbackAmount = Math.min(0.9, safeParam(synthParams.feedback) * 0.8);
   
-  feedbackDelay.delayTime.setValueAtTime(0.01 + safeParam(synthParams.feedback) * 0.05, now);
+  feedbackDelay.delayTime.setValueAtTime(0.005 + safeParam(synthParams.feedback) * 0.02, now);
   feedbackGain.gain.setValueAtTime(feedbackAmount, now);
   
-  // Master gain
-  const masterGain = ctx.createGain();
+  // MASTER OUTPUT STAGE
+  const masterVCA = ctx.createGain();
+  const masterSaturation = ctx.createWaveShaper();
   
-  // Connect audio graph with simplified routing
-  osc.connect(oscGain);
-  osc2.connect(osc2Gain);
-  noiseSource.connect(noiseGain);
+  // Analog-style saturation curve
+  const saturationCurve = new Float32Array(65536);
+  for (let i = 0; i < 65536; i++) {
+    const x = (i - 32768) / 16384;
+    saturationCurve[i] = Math.tanh(x * (1 + safeParam(synthParams.driveColor) * 2)) * 0.9;
+  }
+  masterSaturation.curve = saturationCurve;
+  masterSaturation.oversample = '2x';
   
-  // Simple ring modulation using GainNode
-  const ringMix = ctx.createGain();
-  ringMix.gain.setValueAtTime(1 - ringModDepth, now);
+  // PATCHING - Connect the modular system
   
+  // VCOs to mixer
+  vco1.connect(vco1Gain);
+  vco2.connect(vco2Gain);
+  
+  // FM patching - "razor-sharp FM chirps"
+  fmOsc.connect(fmGain);
+  fmGain.connect(fmEnvelope);
+  fmEnvelope.connect(vco1.frequency);
+  
+  // VCF patching with CV control
+  vco1Gain.connect(mixer1);
+  vco2Gain.connect(mixer2);
+  
+  // Dual filter path
+  mixer1.connect(vcf1);
+  mixer2.connect(vcf2);
+  
+  // LFO modulation patching
+  lfo1Gain.connect(vcf1.frequency);
+  lfo2Gain.connect(vcf2.frequency);
+  
+  // Sample & Hold to filter cutoff
+  sampleHoldLFO.connect(sampleHoldGain);
+  if (safeParam(synthParams.sampleHold) > 0.01) {
+    sampleHoldGain.connect(vcf1.frequency);
+  }
+  
+  // Noise path
+  noiseSource.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  
+  // Ring modulation
   if (ringModDepth > 0.01) {
-    // Create proper ring mod by using gain nodes
-    const ringModulator = ctx.createGain();
-    ringModulator.gain.setValueAtTime(ringModDepth, now);
-    
-    osc.connect(ringModulator);
-    osc2.connect(ringModulator);
-    ringModulator.connect(ringMix);
+    vcf1.connect(ringMod);
+    vcf2.connect(ringMod.gain);
   }
   
-  // Main signal path
-  oscGain.connect(ringMix);
-  osc2Gain.connect(filter1);
-  noiseGain.connect(filter1);
-  ringMix.connect(filter1);
-  
-  // Simple filter routing
-  if (routeAmount > 0.5) {
-    // Series routing
-    filter1.connect(filter2);
-    filter2.connect(masterGain);
-  } else {
-    // Direct routing
-    filter1.connect(masterGain);
+  // Final mixer and VCA
+  vcf1.connect(masterVCA);
+  vcf2.connect(masterVCA);
+  noiseGain.connect(masterVCA);
+  if (ringModDepth > 0.01) {
+    ringMod.connect(masterVCA);
   }
   
-  // Feedback loop (simplified)
+  // Feedback patching
   if (feedbackAmount > 0.01) {
-    masterGain.connect(feedbackDelay);
+    masterVCA.connect(feedbackDelay);
     feedbackDelay.connect(feedbackGain);
-    feedbackGain.connect(filter1);
+    feedbackGain.connect(vcf1);
   }
   
-  masterGain.connect(ctx.destination);
+  // Master output chain
+  masterVCA.connect(vca);
+  vca.connect(masterSaturation);
+  masterSaturation.connect(ctx.destination);
   
-  // Safe envelope parameters
-  const attackTime = Math.max(0.001, 0.005 + safeParam(synthParams.envelopeShape) * 0.02);
-  const releaseStart = now + attackTime;
-  const releaseEnd = now + duration;
+  // Set gain levels with voltage-style curves
+  const vco1Level = 0.4 * (1 + safeParam(synthParams.crossMod) * 0.5);
+  const vco2Level = 0.3 * safeParam(synthParams.crossMod);
+  const noiseLevel2 = safeParam(synthParams.noiseLayer) * 0.7;
   
-  // Oscillator envelopes with validation
-  const oscLevel = 0.3;
-  const osc2Level = 0.2 * safeParam(synthParams.crossMod);
-  const noiseLevel2 = safeParam(synthParams.noiseLayer) * 0.8; // Increase noise level
+  vco1Gain.gain.setValueAtTime(vco1Level, now);
+  vco2Gain.gain.setValueAtTime(vco2Level, now);
   
-  // Set safe gain values
-  oscGain.gain.setValueAtTime(0, now);
-  oscGain.gain.linearRampToValueAtTime(oscLevel, releaseStart);
-  oscGain.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
-  
-  osc2Gain.gain.setValueAtTime(0, now);
-  osc2Gain.gain.linearRampToValueAtTime(osc2Level, releaseStart);
-  osc2Gain.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
-  
+  // Noise envelope - different curve for drums vs sounds
   noiseGain.gain.setValueAtTime(0, now);
-  noiseGain.gain.linearRampToValueAtTime(noiseLevel2, releaseStart * 0.5);
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, releaseEnd * 0.7);
+  noiseGain.gain.linearRampToValueAtTime(noiseLevel2, now + attackTime * 0.5);
+  if (selectedPreset.category === 'drums') {
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.4);
+  } else {
+    noiseGain.gain.exponentialRampToValueAtTime(noiseLevel2 * 0.3, now + duration * 0.7);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  }
   
-  // Master envelope
-  masterGain.gain.setValueAtTime(0, now);
-  masterGain.gain.linearRampToValueAtTime(0.8, releaseStart);
-  masterGain.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
+  // Voltage-style frequency sweeps
+  const freqSweepAmount = safeParam(synthParams.envelopeShape) * baseFreq * 0.5;
+  if (selectedPreset.category === 'drums') {
+    // Punchy frequency sweep for drums
+    vco1.frequency.exponentialRampToValueAtTime(Math.max(20, baseFreq - freqSweepAmount), now + duration * 0.8);
+  }
   
-  // Frequency modulation over time
-  const freqEnd = baseFreq * 0.5;
-  osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), releaseEnd);
+  // Filter envelope - creates "pumping" character
+  const filterSweep = cutoffBase * (0.5 + safeParam(synthParams.envelopeShape) * 2);
+  vcf1.frequency.linearRampToValueAtTime(filterSweep, now + attackTime);
+  vcf1.frequency.exponentialRampToValueAtTime(Math.max(80, cutoffBase * 0.3), now + duration);
   
-  // Start sources
+  // Start all oscillators with slight timing offsets (analog behavior)
+  const startOffset = 0.001;
   fmOsc.start(now);
-  lfo.start(now);
-  sampleHoldLFO.start(now);
-  osc.start(now);
-  osc2.start(now);
-  noiseSource.start(now);
+  lfo1.start(now + startOffset * 0.5);
+  lfo2.start(now + startOffset * 0.7);
+  sampleHoldLFO.start(now + startOffset);
+  vco1.start(now + startOffset * 0.3);
+  vco2.start(now + startOffset * 0.6);
+  noiseSource.start(now + startOffset * 0.2);
   
-  // Stop sources
+  // Stop with slight timing variations (analog behavior)
   const stopTime = now + duration + 0.1;
   fmOsc.stop(stopTime);
-  lfo.stop(stopTime);
-  sampleHoldLFO.stop(stopTime);
-  osc.stop(stopTime);
-  osc2.stop(stopTime);
-  noiseSource.stop(stopTime);
+  lfo1.stop(stopTime + 0.001);
+  lfo2.stop(stopTime + 0.002);
+  sampleHoldLFO.stop(stopTime + 0.003);
+  vco1.stop(stopTime + 0.001);
+  vco2.stop(stopTime + 0.002);
+  noiseSource.stop(stopTime + 0.001);
   
   return duration * 1000; // Return duration in milliseconds
 };
