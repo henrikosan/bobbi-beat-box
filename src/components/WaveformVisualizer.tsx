@@ -136,7 +136,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
   return (
     <div className="h-full flex flex-col">
       <h3 className="text-lg font-semibold text-primary mb-4 flex items-center">
-        <div className="w-2 h-2 bg-neon-yellow rounded-full mr-2 animate-pulse-glow"></div>
+        <div className="w-2 h-2 bg-neon-yellow rounded-full mr-2"></div>
         Waveform
       </h3>
       
@@ -151,7 +151,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
         {/* Overlay info */}
         <div className="absolute top-2 right-2 text-xs font-mono text-muted-foreground">
           {isPlaying ? (
-            <span className="text-neon-cyan animate-pulse">● PLAYING</span>
+            <span className="text-neon-cyan">● PLAYING</span>
           ) : (
             <span>● READY</span>
           )}

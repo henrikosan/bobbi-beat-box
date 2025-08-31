@@ -34,7 +34,7 @@ export const PresetBrowser: React.FC<PresetBrowserProps> = ({
   return (
     <div className="h-full flex flex-col">
       <h3 className="text-lg font-semibold text-primary mb-4 flex items-center">
-        <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2 animate-pulse-glow"></div>
+        <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
         Preset Browser
       </h3>
 

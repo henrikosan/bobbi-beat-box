@@ -40,7 +40,7 @@ export const TriggerButton: React.FC<TriggerButtonProps> = ({
   return (
     <div className="h-full flex flex-col items-center justify-center text-center">
       <h3 className="text-lg font-semibold text-primary mb-6 flex items-center">
-        <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2 animate-pulse-glow"></div>
+        <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
         Trigger
       </h3>
       
@@ -93,7 +93,7 @@ export const TriggerButton: React.FC<TriggerButtonProps> = ({
       <div className="mt-4 text-xs text-muted-foreground">
         <div className="flex items-center">
           <div className={`w-2 h-2 rounded-full mr-2 ${
-            isPlaying ? 'bg-neon-cyan animate-pulse' : 'bg-panel-medium'
+            isPlaying ? 'bg-neon-cyan' : 'bg-panel-medium'
           }`} />
           Audio Engine Ready
         </div>

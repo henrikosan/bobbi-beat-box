@@ -88,7 +88,7 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
   return (
     <div className="h-full">
       <h3 className="text-lg font-semibold text-primary mb-6 flex items-center">
-        <div className="w-2 h-2 bg-neon-magenta rounded-full mr-2 animate-pulse-glow"></div>
+        <div className="w-2 h-2 bg-neon-magenta rounded-full mr-2"></div>
         Tweak Panel
       </h3>
 
