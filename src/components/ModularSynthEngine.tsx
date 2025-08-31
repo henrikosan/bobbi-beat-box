@@ -28,8 +28,30 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   const osc2Gain = ctx.createGain();
   
   const harmonicFreq = baseFreq * (1 + safeParam(synthParams.crossMod, 0, 2));
-  osc2.type = 'square';
+  // Wave morphing between different waveforms
+  const waveTypes = ['sine', 'square', 'sawtooth', 'triangle'];
+  const waveIndex = Math.floor(safeParam(synthParams.waveMorph) * (waveTypes.length - 0.01));
+  osc2.type = waveTypes[waveIndex] as OscillatorType;
   osc2.frequency.setValueAtTime(harmonicFreq, now);
+  
+  // LFO for modulation
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  const lfoRate = 0.1 + safeParam(synthParams.lfoRate) * 10; // 0.1 to 10 Hz
+  const lfoDepth = safeParam(synthParams.lfoRate) * 20;
+  
+  lfo.type = 'sine';
+  lfo.frequency.setValueAtTime(lfoRate, now);
+  lfoGain.gain.setValueAtTime(lfoDepth, now);
+  
+  // Connect LFO to oscillator frequency for vibrato
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+  
+  // Ring modulator
+  const ringModGain = ctx.createGain();
+  const ringModDepth = safeParam(synthParams.ringMod);
+  ringModGain.gain.setValueAtTime(ringModDepth, now);
   
   // FM oscillator with safe parameters
   const fmOsc = ctx.createOscillator();
@@ -78,28 +100,82 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   const noiseGain = ctx.createGain();
   noiseSource.buffer = noiseBuffer;
   
-  // Safe filter setup
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
+  // Sample & Hold for stepped modulation
+  const sampleHoldRate = 1 + safeParam(synthParams.sampleHold) * 20;
+  const sampleHoldLFO = ctx.createOscillator();
+  const sampleHoldGain = ctx.createGain();
+  sampleHoldLFO.type = 'square'; // Creates stepped effect
+  sampleHoldLFO.frequency.setValueAtTime(sampleHoldRate, now);
+  sampleHoldGain.gain.setValueAtTime(100, now);
+  
+  // Filter routing - series vs parallel
+  const filter1 = ctx.createBiquadFilter();
+  const filter2 = ctx.createBiquadFilter();
+  const filterRouteMix = ctx.createGain();
+  const filterBypass = ctx.createGain();
+  
+  filter1.type = 'lowpass';
+  filter2.type = 'highpass';
   
   const cutoffFreq = Math.max(80, 200 + safeParam(synthParams.resonance) * 2000);
   const qValue = Math.max(0.1, 1 + safeParam(synthParams.resonance) * 15);
+  const routeAmount = safeParam(synthParams.filterRoute);
   
-  filter.frequency.setValueAtTime(cutoffFreq, now);
-  filter.Q.setValueAtTime(qValue, now);
+  filter1.frequency.setValueAtTime(cutoffFreq, now);
+  filter1.Q.setValueAtTime(qValue, now);
+  filter2.frequency.setValueAtTime(cutoffFreq * 0.5, now);
+  filter2.Q.setValueAtTime(qValue * 0.8, now);
+  
+  filterRouteMix.gain.setValueAtTime(routeAmount, now);
+  filterBypass.gain.setValueAtTime(1 - routeAmount, now);
+  
+  // Connect Sample & Hold to filter frequency
+  sampleHoldLFO.connect(sampleHoldGain);
+  sampleHoldGain.connect(filter1.frequency);
+  
+  // Feedback loop
+  const feedbackDelay = ctx.createDelay(0.1);
+  const feedbackGain = ctx.createGain();
+  const feedbackAmount = safeParam(synthParams.feedback, 0, 0.9); // Limit to prevent runaway
+  
+  feedbackDelay.delayTime.setValueAtTime(0.01 + safeParam(synthParams.feedback) * 0.05, now);
+  feedbackGain.gain.setValueAtTime(feedbackAmount, now);
   
   // Master gain
   const masterGain = ctx.createGain();
   
-  // Connect audio graph safely
+  // Connect audio graph with modular routing
   osc.connect(oscGain);
   osc2.connect(osc2Gain);
   noiseSource.connect(noiseGain);
   
-  oscGain.connect(filter);
-  osc2Gain.connect(filter);
-  noiseGain.connect(filter);
-  filter.connect(masterGain);
+  // Ring modulation: multiply osc1 and osc2
+  if (ringModDepth > 0.01) {
+    osc.connect(ringModGain);
+    osc2.connect(ringModGain.gain); // Ring mod effect
+  }
+  
+  // Complex filter routing
+  oscGain.connect(filter1);
+  oscGain.connect(filterBypass);
+  
+  osc2Gain.connect(filter1);
+  ringModGain.connect(filter1);
+  noiseGain.connect(filter1);
+  
+  // Filter routing: series vs parallel
+  filter1.connect(filter2);
+  filter1.connect(filterRouteMix);
+  filter2.connect(filterBypass);
+  
+  filterRouteMix.connect(masterGain);
+  filterBypass.connect(masterGain);
+  
+  // Feedback loop
+  masterGain.connect(feedbackDelay);
+  feedbackDelay.connect(feedbackGain);
+  feedbackGain.connect(filter1);
+  
   masterGain.connect(ctx.destination);
   
   // Safe envelope parameters
@@ -136,6 +212,8 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   
   // Start sources
   fmOsc.start(now);
+  lfo.start(now);
+  sampleHoldLFO.start(now);
   osc.start(now);
   osc2.start(now);
   noiseSource.start(now);
@@ -143,6 +221,8 @@ export const generateModularSound = (ctx: AudioContext, synthParams: any, select
   // Stop sources
   const stopTime = now + duration + 0.1;
   fmOsc.stop(stopTime);
+  lfo.stop(stopTime);
+  sampleHoldLFO.stop(stopTime);
   osc.stop(stopTime);
   osc2.stop(stopTime);
   noiseSource.stop(stopTime);
