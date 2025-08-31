@@ -104,7 +104,7 @@ export const BobbiCussion: React.FC = () => {
     };
   }, []);
 
-  // Basic sound generation using Web Audio API
+  // Enhanced sound generation with mathematical operations
   const generateSound = useCallback(async () => {
     if (!audioContextRef.current) return;
     
@@ -116,79 +116,189 @@ export const BobbiCussion: React.FC = () => {
     const now = ctx.currentTime;
     const duration = 0.1 + (synthParams.envelopeShape * 0.4); // 0.1s to 0.5s
     
-    // Main oscillator for tonal content
-    const osc = ctx.createOscillator();
-    const oscGain = ctx.createGain();
-    
-    // Noise generator
-    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
-    const noiseData = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < noiseData.length; i++) {
-      noiseData[i] = (Math.random() * 2 - 1) * synthParams.noiseLayer;
-    }
-    const noiseSource = ctx.createBufferSource();
-    const noiseGain = ctx.createGain();
-    noiseSource.buffer = noiseBuffer;
-    
-    // Filter for character
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(200 + (synthParams.resonance * 2000), now);
-    filter.Q.setValueAtTime(1 + (synthParams.resonance * 15), now);
-    
-    // Master gain with envelope
-    const masterGain = ctx.createGain();
-    
-    // Set frequencies based on preset
+    // Mathematical frequency relationships
     let baseFreq = 60; // Kick frequency
     if (selectedPreset.category === 'sounds') {
       baseFreq = 200 + (synthParams.fmAmount * 800);
     }
     
-    osc.frequency.setValueAtTime(baseFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(
-      baseFreq * (1 + synthParams.fmAmount), 
-      now + (duration * 0.1)
-    );
-    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, now + duration);
+    // Create multiple oscillators with mathematical relationships
+    const oscillators = [];
+    const gains = [];
     
-    // Connect audio graph
-    osc.connect(oscGain);
+    // Primary oscillator
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.frequency.setValueAtTime(baseFreq, now);
+    oscillators.push(osc1);
+    gains.push(gain1);
+    
+    // Mathematical harmonic - multiply by golden ratio for interesting intervals
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    const harmonicFreq = baseFreq * 1.618; // Golden ratio
+    osc2.frequency.setValueAtTime(harmonicFreq, now);
+    oscillators.push(osc2);
+    gains.push(gain2);
+    
+    // Subharmonic - divide by mathematical ratio
+    const osc3 = ctx.createOscillator();
+    const gain3 = ctx.createGain();
+    const subFreq = baseFreq / Math.PI; // Pi ratio for unique character
+    osc3.frequency.setValueAtTime(subFreq, now);
+    oscillators.push(osc3);
+    gains.push(gain3);
+    
+    // Mathematical FM modulator
+    const fmOsc = ctx.createOscillator();
+    const fmGain = ctx.createGain();
+    const fmFreq = baseFreq * (2 + synthParams.fmAmount * 8); // Modulator frequency
+    fmOsc.frequency.setValueAtTime(fmFreq, now);
+    fmGain.gain.setValueAtTime(synthParams.fmAmount * 100, now); // FM depth
+    
+    // Connect FM modulator to primary oscillator frequency
+    fmOsc.connect(fmGain);
+    fmGain.connect(osc1.frequency);
+    
+    // Enhanced noise with mathematical filtering
+    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    
+    // Generate mathematically shaped noise
+    for (let i = 0; i < noiseData.length; i++) {
+      const t = i / noiseData.length;
+      
+      // Combine multiple noise sources with mathematical operations
+      const whiteNoise = Math.random() * 2 - 1;
+      const pinkNoise = Math.sin(t * Math.PI * 10) * (Math.random() * 2 - 1);
+      const brownianNoise = Math.pow(Math.random(), 2) * 2 - 1;
+      
+      // Mathematical combination based on parameters
+      const noiseMix = (
+        whiteNoise * (1 - synthParams.noiseLayer * 0.5) +
+        pinkNoise * (synthParams.noiseLayer * 0.3) +
+        brownianNoise * (synthParams.noiseLayer * 0.2)
+      );
+      
+      // Apply mathematical waveshaping
+      const shaped = Math.tanh(noiseMix * (1 + synthParams.driveColor * 3));
+      noiseData[i] = shaped * synthParams.noiseLayer;
+    }
+    
+    const noiseSource = ctx.createBufferSource();
+    const noiseGain = ctx.createGain();
+    noiseSource.buffer = noiseBuffer;
+    
+    // Mathematical filter cascade
+    const filter1 = ctx.createBiquadFilter();
+    const filter2 = ctx.createBiquadFilter();
+    
+    filter1.type = 'lowpass';
+    filter2.type = 'highpass';
+    
+    // Mathematical frequency relationships
+    const cutoffFreq = 200 + (synthParams.resonance * 2000);
+    const qFactor = 1 + (synthParams.resonance * 15);
+    
+    filter1.frequency.setValueAtTime(cutoffFreq, now);
+    filter1.Q.setValueAtTime(qFactor, now);
+    filter2.frequency.setValueAtTime(cutoffFreq * 0.1, now);
+    filter2.Q.setValueAtTime(qFactor * 0.5, now);
+    
+    // Mathematical distortion/waveshaper
+    const waveshaper = ctx.createWaveShaper();
+    const curve = new Float32Array(256);
+    const driveAmount = synthParams.driveColor * 10;
+    
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / 128) - 1;
+      // Mathematical distortion curve using hyperbolic tangent
+      curve[i] = Math.tanh(x * driveAmount) * (1 / Math.tanh(driveAmount));
+    }
+    waveshaper.curve = curve;
+    waveshaper.oversample = '4x';
+    
+    // Master gain with mathematical envelope
+    const masterGain = ctx.createGain();
+    
+    // Connect oscillators with mathematical mixing
+    oscillators.forEach((osc, index) => {
+      const gain = gains[index];
+      
+      // Mathematical amplitude relationships
+      const amplitude = index === 0 ? 0.6 : 0.3 / (index + 1); // Decreasing harmonic series
+      
+      osc.connect(gain);
+      gain.connect(filter1);
+      
+      // Set mathematical frequency modulation
+      const freqMod = baseFreq * Math.pow(2, synthParams.fmAmount * (index + 1) * 0.1);
+      osc.frequency.exponentialRampToValueAtTime(freqMod, now + (duration * 0.1));
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, now + duration);
+      
+      // Mathematical envelope with exponential curves
+      const attackTime = 0.01;
+      const decayTime = duration - attackTime;
+      const peakLevel = amplitude * (0.3 + synthParams.driveColor * 0.4);
+      
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(peakLevel, now + attackTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    });
+    
+    // Connect noise path
     noiseSource.connect(noiseGain);
-    oscGain.connect(filter);
-    noiseGain.connect(filter);
-    filter.connect(masterGain);
+    noiseGain.connect(filter2);
+    filter2.connect(filter1);
+    
+    // Connect through waveshaper and filters
+    filter1.connect(waveshaper);
+    waveshaper.connect(masterGain);
     masterGain.connect(ctx.destination);
     
-    // Envelope
-    const attackTime = 0.01;
-    const releaseTime = duration - attackTime;
-    const peakLevel = 0.3 + (synthParams.driveColor * 0.4);
-    
-    oscGain.gain.setValueAtTime(0, now);
-    oscGain.gain.linearRampToValueAtTime(peakLevel * 0.7, now + attackTime);
-    oscGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
-    
-    noiseGain.gain.setValueAtTime(0, now);
-    noiseGain.gain.linearRampToValueAtTime(peakLevel * synthParams.noiseLayer, now + attackTime);
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    // Mathematical master envelope with curves
+    const attackCurve = 1 - Math.exp(-5 * (0.01 / 0.01)); // Exponential attack
+    const decayCurve = Math.exp(-3 * (duration - 0.01) / duration); // Exponential decay
     
     masterGain.gain.setValueAtTime(0, now);
-    masterGain.gain.linearRampToValueAtTime(1, now + attackTime);
-    masterGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    masterGain.gain.linearRampToValueAtTime(attackCurve, now + 0.01);
+    masterGain.gain.exponentialRampToValueAtTime(0.001 * decayCurve, now + duration);
     
-    // Start sources
-    osc.start(now);
+    // Noise envelope with different mathematical curve
+    const noisePeak = 0.4 * synthParams.noiseLayer;
+    noiseGain.gain.setValueAtTime(0, now);
+    noiseGain.gain.linearRampToValueAtTime(noisePeak, now + 0.005);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.7);
+    
+    // Start all sources
+    fmOsc.start(now);
+    oscillators.forEach(osc => osc.start(now));
     noiseSource.start(now);
-    osc.stop(now + duration);
+    
+    // Stop all sources
+    fmOsc.stop(now + duration);
+    oscillators.forEach(osc => osc.stop(now + duration));
     noiseSource.stop(now + duration);
     
-    // Generate waveform data for visualization
+    // Generate enhanced waveform data with mathematical visualization
     const waveformData = [];
     for (let i = 0; i < 32; i++) {
       const t = i / 32;
-      const envelope = t < 0.1 ? t * 10 : Math.exp(-(t - 0.1) * 10);
-      waveformData.push(envelope * (0.5 + Math.random() * 0.5));
+      
+      // Mathematical combination of multiple wave sources
+      const fundamental = Math.sin(t * Math.PI * 8);
+      const harmonic = Math.sin(t * Math.PI * 8 * 1.618) * 0.3; // Golden ratio harmonic
+      const subharmonic = Math.sin(t * Math.PI * 8 / Math.PI) * 0.2; // Pi ratio subharmonic
+      const noise = (Math.random() - 0.5) * synthParams.noiseLayer;
+      
+      // Mathematical envelope
+      const envelope = t < 0.1 ? Math.pow(t * 10, 2) : Math.exp(-(t - 0.1) * 8);
+      
+      // Combine all sources mathematically
+      const combined = (fundamental + harmonic + subharmonic + noise) * envelope;
+      const shaped = Math.tanh(combined * (1 + synthParams.driveColor));
+      
+      waveformData.push(Math.abs(shaped));
     }
     waveformRef.current = waveformData;
     
