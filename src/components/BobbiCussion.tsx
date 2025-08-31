@@ -3,6 +3,7 @@ import { PresetBrowser } from './PresetBrowser';
 import { TweakPanel } from './TweakPanel';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { TriggerButton } from './TriggerButton';
+import { generateModularSound } from './ModularSynthEngine';
 
 // Preset definitions
 export interface Preset {
@@ -16,16 +17,33 @@ export interface Preset {
     fmAmount: number;
     resonance: number;
     driveColor: number;
+    crossMod: number;
+    ringMod: number;
+    lfoRate: number;
+    waveMorph: number;
+    feedback: number;
+    filterRoute: number;
+    sampleHold: number;
+    chaosLevel: number;
   };
 }
 
-// Sound engine parameters
+// Enhanced modular sound engine parameters
 export interface SynthParams {
   envelopeShape: number;
   noiseLayer: number;
   fmAmount: number;
   resonance: number;
   driveColor: number;
+  // New modular parameters
+  crossMod: number;
+  ringMod: number;
+  lfoRate: number;
+  waveMorph: number;
+  feedback: number;
+  filterRoute: number;
+  sampleHold: number;
+  chaosLevel: number;
 }
 
 const defaultParams: SynthParams = {
@@ -34,51 +52,83 @@ const defaultParams: SynthParams = {
   fmAmount: 0.4,
   resonance: 0.5,
   driveColor: 0.3,
+  crossMod: 0.2,
+  ringMod: 0.1,
+  lfoRate: 0.3,
+  waveMorph: 0.5,
+  feedback: 0.1,
+  filterRoute: 0.4,
+  sampleHold: 0.2,
+  chaosLevel: 0.1,
 };
 
-// Demo presets
+// Enhanced modular presets
 const DEMO_PRESETS: Preset[] = [
   {
     id: 'kick-1',
     name: 'Deep Analog Kick',
     category: 'drums',
     description: 'Punchy 808-style kick with warm analog drive',
-    parameters: { envelopeShape: 0.8, noiseLayer: 0.1, fmAmount: 0.6, resonance: 0.3, driveColor: 0.7 }
+    parameters: { 
+      envelopeShape: 0.8, noiseLayer: 0.1, fmAmount: 0.6, resonance: 0.3, driveColor: 0.7,
+      crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2, waveMorph: 0.3, feedback: 0.2, 
+      filterRoute: 0.4, sampleHold: 0.1, chaosLevel: 0.1 
+    }
   },
   {
     id: 'snare-1',
     name: 'Crispy Digital Snare',
     category: 'drums',
     description: 'Sharp attack with metallic noise burst',
-    parameters: { envelopeShape: 0.2, noiseLayer: 0.8, fmAmount: 0.3, resonance: 0.7, driveColor: 0.4 }
+    parameters: { 
+      envelopeShape: 0.2, noiseLayer: 0.8, fmAmount: 0.3, resonance: 0.7, driveColor: 0.4,
+      crossMod: 0.5, ringMod: 0.6, lfoRate: 0.7, waveMorph: 0.8, feedback: 0.3,
+      filterRoute: 0.6, sampleHold: 0.4, chaosLevel: 0.3
+    }
   },
   {
     id: 'hihat-1',
     name: 'Sizzling Hi-Hat',
     category: 'drums',
     description: 'Bright metallic texture with quick decay',
-    parameters: { envelopeShape: 0.1, noiseLayer: 0.9, fmAmount: 0.2, resonance: 0.8, driveColor: 0.2 }
+    parameters: { 
+      envelopeShape: 0.1, noiseLayer: 0.9, fmAmount: 0.2, resonance: 0.8, driveColor: 0.2,
+      crossMod: 0.2, ringMod: 0.9, lfoRate: 0.9, waveMorph: 0.7, feedback: 0.1,
+      filterRoute: 0.8, sampleHold: 0.8, chaosLevel: 0.2
+    }
   },
   {
     id: 'fm-blip-1',
     name: 'Snappy FM Tick',
     category: 'sounds',
     description: 'Percussive chirp with sizzling tail',
-    parameters: { envelopeShape: 0.15, noiseLayer: 0.3, fmAmount: 0.9, resonance: 0.6, driveColor: 0.5 }
+    parameters: { 
+      envelopeShape: 0.15, noiseLayer: 0.3, fmAmount: 0.9, resonance: 0.6, driveColor: 0.5,
+      crossMod: 0.8, ringMod: 0.4, lfoRate: 0.6, waveMorph: 0.9, feedback: 0.4,
+      filterRoute: 0.3, sampleHold: 0.6, chaosLevel: 0.5
+    }
   },
   {
     id: 'metal-hit-1',
     name: 'Industrial Clank',
     category: 'sounds',
     description: 'Heavy metallic impact with resonant ring',
-    parameters: { envelopeShape: 0.4, noiseLayer: 0.7, fmAmount: 0.5, resonance: 0.9, driveColor: 0.8 }
+    parameters: { 
+      envelopeShape: 0.4, noiseLayer: 0.7, fmAmount: 0.5, resonance: 0.9, driveColor: 0.8,
+      crossMod: 0.7, ringMod: 0.8, lfoRate: 0.3, waveMorph: 0.4, feedback: 0.9,
+      filterRoute: 0.9, sampleHold: 0.3, chaosLevel: 0.8
+    }
   },
   {
     id: 'noise-burst-1',
     name: 'Filtered Noise Pop',
     category: 'sounds',
     description: 'Explosive texture with analog warmth',
-    parameters: { envelopeShape: 0.25, noiseLayer: 0.95, fmAmount: 0.1, resonance: 0.4, driveColor: 0.6 }
+    parameters: { 
+      envelopeShape: 0.25, noiseLayer: 0.95, fmAmount: 0.1, resonance: 0.4, driveColor: 0.6,
+      crossMod: 0.1, ringMod: 0.2, lfoRate: 0.8, waveMorph: 0.2, feedback: 0.5,
+      filterRoute: 0.2, sampleHold: 0.9, chaosLevel: 0.4
+    }
   }
 ];
 
@@ -104,7 +154,7 @@ export const BobbiCussion: React.FC = () => {
     };
   }, []);
 
-  // Enhanced sound generation with mathematical operations
+  // Advanced modular sound synthesis engine
   const generateSound = useCallback(async () => {
     if (!audioContextRef.current) return;
     
@@ -113,197 +163,38 @@ export const BobbiCussion: React.FC = () => {
       await ctx.resume();
     }
 
-    const now = ctx.currentTime;
-    const duration = 0.1 + (synthParams.envelopeShape * 0.4); // 0.1s to 0.5s
+    // Use the advanced modular synthesis engine
+    const durationMs = generateModularSound(ctx, synthParams, selectedPreset);
     
-    // Mathematical frequency relationships
-    let baseFreq = 60; // Kick frequency
-    if (selectedPreset.category === 'sounds') {
-      baseFreq = 200 + (synthParams.fmAmount * 800);
-    }
-    
-    // Create multiple oscillators with mathematical relationships
-    const oscillators = [];
-    const gains = [];
-    
-    // Primary oscillator
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.frequency.setValueAtTime(baseFreq, now);
-    oscillators.push(osc1);
-    gains.push(gain1);
-    
-    // Mathematical harmonic - multiply by golden ratio for interesting intervals
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    const harmonicFreq = baseFreq * 1.618; // Golden ratio
-    osc2.frequency.setValueAtTime(harmonicFreq, now);
-    oscillators.push(osc2);
-    gains.push(gain2);
-    
-    // Subharmonic - divide by mathematical ratio
-    const osc3 = ctx.createOscillator();
-    const gain3 = ctx.createGain();
-    const subFreq = baseFreq / Math.PI; // Pi ratio for unique character
-    osc3.frequency.setValueAtTime(subFreq, now);
-    oscillators.push(osc3);
-    gains.push(gain3);
-    
-    // Mathematical FM modulator
-    const fmOsc = ctx.createOscillator();
-    const fmGain = ctx.createGain();
-    const fmFreq = baseFreq * (2 + synthParams.fmAmount * 8); // Modulator frequency
-    fmOsc.frequency.setValueAtTime(fmFreq, now);
-    fmGain.gain.setValueAtTime(synthParams.fmAmount * 100, now); // FM depth
-    
-    // Connect FM modulator to primary oscillator frequency
-    fmOsc.connect(fmGain);
-    fmGain.connect(osc1.frequency);
-    
-    // Enhanced noise with mathematical filtering
-    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
-    const noiseData = noiseBuffer.getChannelData(0);
-    
-    // Generate mathematically shaped noise
-    for (let i = 0; i < noiseData.length; i++) {
-      const t = i / noiseData.length;
-      
-      // Combine multiple noise sources with mathematical operations
-      const whiteNoise = Math.random() * 2 - 1;
-      const pinkNoise = Math.sin(t * Math.PI * 10) * (Math.random() * 2 - 1);
-      const brownianNoise = Math.pow(Math.random(), 2) * 2 - 1;
-      
-      // Mathematical combination based on parameters
-      const noiseMix = (
-        whiteNoise * (1 - synthParams.noiseLayer * 0.5) +
-        pinkNoise * (synthParams.noiseLayer * 0.3) +
-        brownianNoise * (synthParams.noiseLayer * 0.2)
-      );
-      
-      // Apply mathematical waveshaping
-      const shaped = Math.tanh(noiseMix * (1 + synthParams.driveColor * 3));
-      noiseData[i] = shaped * synthParams.noiseLayer;
-    }
-    
-    const noiseSource = ctx.createBufferSource();
-    const noiseGain = ctx.createGain();
-    noiseSource.buffer = noiseBuffer;
-    
-    // Mathematical filter cascade
-    const filter1 = ctx.createBiquadFilter();
-    const filter2 = ctx.createBiquadFilter();
-    
-    filter1.type = 'lowpass';
-    filter2.type = 'highpass';
-    
-    // Mathematical frequency relationships
-    const cutoffFreq = 200 + (synthParams.resonance * 2000);
-    const qFactor = 1 + (synthParams.resonance * 15);
-    
-    filter1.frequency.setValueAtTime(cutoffFreq, now);
-    filter1.Q.setValueAtTime(qFactor, now);
-    filter2.frequency.setValueAtTime(cutoffFreq * 0.1, now);
-    filter2.Q.setValueAtTime(qFactor * 0.5, now);
-    
-    // Mathematical distortion/waveshaper
-    const waveshaper = ctx.createWaveShaper();
-    const curve = new Float32Array(256);
-    const driveAmount = synthParams.driveColor * 10;
-    
-    for (let i = 0; i < curve.length; i++) {
-      const x = (i / 128) - 1;
-      // Mathematical distortion curve using hyperbolic tangent
-      curve[i] = Math.tanh(x * driveAmount) * (1 / Math.tanh(driveAmount));
-    }
-    waveshaper.curve = curve;
-    waveshaper.oversample = '4x';
-    
-    // Master gain with mathematical envelope
-    const masterGain = ctx.createGain();
-    
-    // Connect oscillators with mathematical mixing
-    oscillators.forEach((osc, index) => {
-      const gain = gains[index];
-      
-      // Mathematical amplitude relationships
-      const amplitude = index === 0 ? 0.6 : 0.3 / (index + 1); // Decreasing harmonic series
-      
-      osc.connect(gain);
-      gain.connect(filter1);
-      
-      // Set mathematical frequency modulation
-      const freqMod = baseFreq * Math.pow(2, synthParams.fmAmount * (index + 1) * 0.1);
-      osc.frequency.exponentialRampToValueAtTime(freqMod, now + (duration * 0.1));
-      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, now + duration);
-      
-      // Mathematical envelope with exponential curves
-      const attackTime = 0.01;
-      const decayTime = duration - attackTime;
-      const peakLevel = amplitude * (0.3 + synthParams.driveColor * 0.4);
-      
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(peakLevel, now + attackTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-    });
-    
-    // Connect noise path
-    noiseSource.connect(noiseGain);
-    noiseGain.connect(filter2);
-    filter2.connect(filter1);
-    
-    // Connect through waveshaper and filters
-    filter1.connect(waveshaper);
-    waveshaper.connect(masterGain);
-    masterGain.connect(ctx.destination);
-    
-    // Mathematical master envelope with curves
-    const attackCurve = 1 - Math.exp(-5 * (0.01 / 0.01)); // Exponential attack
-    const decayCurve = Math.exp(-3 * (duration - 0.01) / duration); // Exponential decay
-    
-    masterGain.gain.setValueAtTime(0, now);
-    masterGain.gain.linearRampToValueAtTime(attackCurve, now + 0.01);
-    masterGain.gain.exponentialRampToValueAtTime(0.001 * decayCurve, now + duration);
-    
-    // Noise envelope with different mathematical curve
-    const noisePeak = 0.4 * synthParams.noiseLayer;
-    noiseGain.gain.setValueAtTime(0, now);
-    noiseGain.gain.linearRampToValueAtTime(noisePeak, now + 0.005);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.7);
-    
-    // Start all sources
-    fmOsc.start(now);
-    oscillators.forEach(osc => osc.start(now));
-    noiseSource.start(now);
-    
-    // Stop all sources
-    fmOsc.stop(now + duration);
-    oscillators.forEach(osc => osc.stop(now + duration));
-    noiseSource.stop(now + duration);
-    
-    // Generate enhanced waveform data with mathematical visualization
+    // Generate complex waveform visualization
     const waveformData = [];
-    for (let i = 0; i < 32; i++) {
-      const t = i / 32;
+    for (let i = 0; i < 64; i++) {
+      const t = i / 64;
       
-      // Mathematical combination of multiple wave sources
-      const fundamental = Math.sin(t * Math.PI * 8);
-      const harmonic = Math.sin(t * Math.PI * 8 * 1.618) * 0.3; // Golden ratio harmonic
-      const subharmonic = Math.sin(t * Math.PI * 8 / Math.PI) * 0.2; // Pi ratio subharmonic
-      const noise = (Math.random() - 0.5) * synthParams.noiseLayer;
+      // Multiple mathematical wave sources
+      const fundamental = Math.sin(t * Math.PI * 12);
+      const crossMod = Math.sin(t * Math.PI * 12 * (1 + synthParams.crossMod));
+      const ringMod = Math.sin(t * Math.PI * 8) * Math.sin(t * Math.PI * 20) * synthParams.ringMod;
+      const lfoMod = Math.sin(t * Math.PI * synthParams.lfoRate * 4) * 0.3;
+      const chaos = Math.tan(t * Math.PI * synthParams.chaosLevel * 6) * synthParams.chaosLevel * 0.2;
       
-      // Mathematical envelope
-      const envelope = t < 0.1 ? Math.pow(t * 10, 2) : Math.exp(-(t - 0.1) * 8);
+      // Sample & hold stepping
+      const sampleHoldSteps = Math.floor(t * (8 + synthParams.sampleHold * 24));
+      const sampleHold = (Math.sin(sampleHoldSteps) * synthParams.sampleHold * 0.2);
       
-      // Combine all sources mathematically
-      const combined = (fundamental + harmonic + subharmonic + noise) * envelope;
-      const shaped = Math.tanh(combined * (1 + synthParams.driveColor));
+      // Mathematical envelope with feedback
+      const envelope = t < 0.08 ? Math.pow(t * 12.5, 1.5) : Math.exp(-(t - 0.08) * (6 + synthParams.feedback * 4));
       
-      waveformData.push(Math.abs(shaped));
+      // Combine all sources with complex mathematical relationships
+      const combined = (fundamental + crossMod + ringMod + lfoMod + chaos + sampleHold) * envelope;
+      const shaped = Math.tanh(combined * (1 + synthParams.driveColor * 2));
+      
+      waveformData.push(Math.abs(shaped) * (0.8 + Math.random() * 0.2));
     }
     waveformRef.current = waveformData;
     
     setIsPlaying(true);
-    setTimeout(() => setIsPlaying(false), duration * 1000);
+    setTimeout(() => setIsPlaying(false), durationMs);
   }, [synthParams, selectedPreset]);
 
   const handlePresetSelect = useCallback((preset: Preset) => {

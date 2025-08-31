@@ -87,12 +87,14 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
 }) => {
   return (
     <div className="h-full">
-      <h3 className="text-lg font-semibold text-primary mb-6 flex items-center">
+      <h3 className="text-lg font-semibold text-primary mb-4 flex items-center">
         <div className="w-2 h-2 bg-neon-magenta rounded-full mr-2"></div>
-        Tweak Panel
+        Modular Controls
       </h3>
 
-      <div className="grid grid-cols-2 gap-8 justify-items-center">
+      {/* Enhanced 4x3 grid for all 12 parameters */}
+      <div className="grid grid-cols-4 gap-4 justify-items-center">
+        {/* Row 1 */}
         <Knob
           label="Envelope"
           value={parameters.envelopeShape}
@@ -103,7 +105,35 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
         />
         
         <Knob
-          label="Noise Layer"
+          label="Cross-Mod"
+          value={parameters.crossMod}
+          onChange={(value) => onParameterChange('crossMod', value)}
+          color="magenta"
+          min="None"
+          max="Wild"
+        />
+        
+        <Knob
+          label="Ring Mod"
+          value={parameters.ringMod}
+          onChange={(value) => onParameterChange('ringMod', value)}
+          color="yellow"
+          min="Off"
+          max="Bell"
+        />
+        
+        <Knob
+          label="LFO Rate"
+          value={parameters.lfoRate}
+          onChange={(value) => onParameterChange('lfoRate', value)}
+          color="cyan"
+          min="Slow"
+          max="Fast"
+        />
+        
+        {/* Row 2 */}
+        <Knob
+          label="Noise"
           value={parameters.noiseLayer}
           onChange={(value) => onParameterChange('noiseLayer', value)}
           color="magenta"
@@ -111,6 +141,34 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
           max="Dirty"
         />
         
+        <Knob
+          label="Wave Morph"
+          value={parameters.waveMorph}
+          onChange={(value) => onParameterChange('waveMorph', value)}
+          color="yellow"
+          min="Sine"
+          max="Square"
+        />
+        
+        <Knob
+          label="Feedback"
+          value={parameters.feedback}
+          onChange={(value) => onParameterChange('feedback', value)}
+          color="cyan"
+          min="None"
+          max="Chaos"
+        />
+        
+        <Knob
+          label="Filter Route"
+          value={parameters.filterRoute}
+          onChange={(value) => onParameterChange('filterRoute', value)}
+          color="magenta"
+          min="Series"
+          max="Complex"
+        />
+        
+        {/* Row 3 */}
         <Knob
           label="FM Amount"
           value={parameters.fmAmount}
@@ -121,44 +179,51 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
         />
         
         <Knob
+          label="S&H Rate"
+          value={parameters.sampleHold}
+          onChange={(value) => onParameterChange('sampleHold', value)}
+          color="cyan"
+          min="Smooth"
+          max="Stepped"
+        />
+        
+        <Knob
           label="Resonance"
           value={parameters.resonance}
           onChange={(value) => onParameterChange('resonance', value)}
-          color="cyan"
+          color="magenta"
           min="Soft"
           max="Sharp"
         />
         
-        <div className="col-span-2">
-          <Knob
-            label="Drive/Color"
-            value={parameters.driveColor}
-            onChange={(value) => onParameterChange('driveColor', value)}
-            color="magenta"
-            min="Warm"
-            max="Crunchy"
-          />
-        </div>
+        <Knob
+          label="Chaos Level"
+          value={parameters.chaosLevel}
+          onChange={(value) => onParameterChange('chaosLevel', value)}
+          color="yellow"
+          min="Order"
+          max="Madness"
+        />
       </div>
 
-      {/* Parameter Display */}
-      <div className="mt-6 pt-4 border-t border-border">
-        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">ENV:</span>
-            <span className="text-neon-cyan">{Math.round(parameters.envelopeShape * 100)}</span>
+      {/* Enhanced Parameter Display */}
+      <div className="mt-4 pt-3 border-t border-border">
+        <div className="grid grid-cols-4 gap-1 text-xs font-mono">
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">ENV</span>
+            <span className="text-neon-cyan text-sm">{Math.round(parameters.envelopeShape * 100)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">NOISE:</span>
-            <span className="text-neon-magenta">{Math.round(parameters.noiseLayer * 100)}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">X-MOD</span>
+            <span className="text-neon-magenta text-sm">{Math.round(parameters.crossMod * 100)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">FM:</span>
-            <span className="text-neon-yellow">{Math.round(parameters.fmAmount * 100)}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">RING</span>
+            <span className="text-neon-yellow text-sm">{Math.round(parameters.ringMod * 100)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">RES:</span>
-            <span className="text-neon-cyan">{Math.round(parameters.resonance * 100)}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-muted-foreground text-xs">LFO</span>
+            <span className="text-neon-cyan text-sm">{Math.round(parameters.lfoRate * 100)}</span>
           </div>
         </div>
       </div>
