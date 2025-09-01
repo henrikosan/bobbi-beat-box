@@ -29,7 +29,8 @@ export interface Preset {
 // Enhanced modular sound engine parameters
 export interface SynthParams {
   // Basic parameters (always visible)
-  envelopeShape: number;
+  envelopeShape: number; // For basic mode compatibility
+  envelopeDecay: number; // New: Main decay control for basic mode
   noiseLayer: number;
   fmAmount: number;
   resonance: number;
@@ -37,6 +38,11 @@ export interface SynthParams {
   crossMod: number;
   ringMod: number;
   lfoRate: number;
+  
+  // Advanced envelope parameters (experimental mode)
+  envelopeAttack: number;
+  envelopeSustain: number;
+  envelopeRelease: number;
   
   // Advanced parameters
   waveMorph: number;
@@ -67,6 +73,7 @@ export interface SynthParams {
 const defaultParams: SynthParams = {
   // Basic parameters
   envelopeShape: 0.3,
+  envelopeDecay: 0.4, // Medium decay length
   noiseLayer: 0.2,
   fmAmount: 0.4,
   resonance: 0.5,
@@ -74,6 +81,11 @@ const defaultParams: SynthParams = {
   crossMod: 0.2,
   ringMod: 0.1,
   lfoRate: 0.3,
+  
+  // Advanced envelope parameters
+  envelopeAttack: 0.05, // Quick attack (5ms)
+  envelopeSustain: 0.2, // Low sustain
+  envelopeRelease: 0.3, // Medium release
   
   // Advanced parameters
   waveMorph: 0.5,
@@ -109,8 +121,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'drums',
     description: 'Punchy 808-style kick with warm analog drive',
     parameters: { 
-      envelopeShape: 0.8, noiseLayer: 0.1, fmAmount: 0.6, resonance: 0.3, driveColor: 0.7,
-      crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2, waveMorph: 0.3, feedback: 0.2, 
+      envelopeShape: 0.8, envelopeDecay: 0.7, noiseLayer: 0.1, fmAmount: 0.6, resonance: 0.3, driveColor: 0.7,
+      crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2, 
+      envelopeAttack: 0.01, envelopeSustain: 0.1, envelopeRelease: 0.6, // Quick attack, short sustain, long decay
+      waveMorph: 0.3, feedback: 0.2, 
       filterRoute: 0.4, sampleHold: 0.1, chaosLevel: 0.1,
       reverbAmount: 0.1, reverbSize: 0.3, delayTime: 0.0, delayFeedback: 0.1,
       grainSize: 0.2, grainDensity: 0.3, grainPitch: 0.5, grainPosition: 0.4,
@@ -124,8 +138,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'drums',
     description: 'Sharp attack with metallic noise burst',
     parameters: { 
-      envelopeShape: 0.2, noiseLayer: 0.8, fmAmount: 0.3, resonance: 0.7, driveColor: 0.4,
-      crossMod: 0.5, ringMod: 0.6, lfoRate: 0.7, waveMorph: 0.8, feedback: 0.3,
+      envelopeShape: 0.2, envelopeDecay: 0.3, noiseLayer: 0.8, fmAmount: 0.3, resonance: 0.7, driveColor: 0.4,
+      crossMod: 0.5, ringMod: 0.6, lfoRate: 0.7,
+      envelopeAttack: 0.005, envelopeSustain: 0.15, envelopeRelease: 0.25, // Very quick attack, medium sustain and release
+      waveMorph: 0.8, feedback: 0.3,
       filterRoute: 0.6, sampleHold: 0.4, chaosLevel: 0.3,
       reverbAmount: 0.3, reverbSize: 0.4, delayTime: 0.2, delayFeedback: 0.3,
       grainSize: 0.1, grainDensity: 0.6, grainPitch: 0.7, grainPosition: 0.3,
@@ -139,8 +155,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'drums',
     description: 'Bright metallic texture with quick decay',
     parameters: { 
-      envelopeShape: 0.1, noiseLayer: 0.9, fmAmount: 0.2, resonance: 0.8, driveColor: 0.2,
-      crossMod: 0.2, ringMod: 0.9, lfoRate: 0.9, waveMorph: 0.7, feedback: 0.1,
+      envelopeShape: 0.1, envelopeDecay: 0.15, noiseLayer: 0.9, fmAmount: 0.2, resonance: 0.8, driveColor: 0.2,
+      crossMod: 0.2, ringMod: 0.9, lfoRate: 0.9,
+      envelopeAttack: 0.001, envelopeSustain: 0.05, envelopeRelease: 0.1, // Ultra-quick attack, very short sustain and release
+      waveMorph: 0.7, feedback: 0.1,
       filterRoute: 0.8, sampleHold: 0.8, chaosLevel: 0.2,
       reverbAmount: 0.4, reverbSize: 0.6, delayTime: 0.1, delayFeedback: 0.2,
       grainSize: 0.05, grainDensity: 0.9, grainPitch: 0.8, grainPosition: 0.9,
@@ -154,8 +172,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'sounds',
     description: 'Percussive chirp with sizzling tail',
     parameters: { 
-      envelopeShape: 0.15, noiseLayer: 0.3, fmAmount: 0.9, resonance: 0.6, driveColor: 0.5,
-      crossMod: 0.8, ringMod: 0.4, lfoRate: 0.6, waveMorph: 0.9, feedback: 0.4,
+      envelopeShape: 0.15, envelopeDecay: 0.2, noiseLayer: 0.3, fmAmount: 0.9, resonance: 0.6, driveColor: 0.5,
+      crossMod: 0.8, ringMod: 0.4, lfoRate: 0.6,
+      envelopeAttack: 0.002, envelopeSustain: 0.1, envelopeRelease: 0.15, // Sharp attack, short sustain
+      waveMorph: 0.9, feedback: 0.4,
       filterRoute: 0.3, sampleHold: 0.6, chaosLevel: 0.5,
       reverbAmount: 0.2, reverbSize: 0.7, delayTime: 0.4, delayFeedback: 0.5,
       grainSize: 0.3, grainDensity: 0.4, grainPitch: 0.9, grainPosition: 0.2,
@@ -169,8 +189,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'sounds',
     description: 'Heavy metallic impact with resonant ring',
     parameters: { 
-      envelopeShape: 0.4, noiseLayer: 0.7, fmAmount: 0.5, resonance: 0.9, driveColor: 0.8,
-      crossMod: 0.7, ringMod: 0.8, lfoRate: 0.3, waveMorph: 0.4, feedback: 0.9,
+      envelopeShape: 0.4, envelopeDecay: 0.6, noiseLayer: 0.7, fmAmount: 0.5, resonance: 0.9, driveColor: 0.8,
+      crossMod: 0.7, ringMod: 0.8, lfoRate: 0.3,
+      envelopeAttack: 0.01, envelopeSustain: 0.3, envelopeRelease: 0.5, // Medium attack, sustained ring
+      waveMorph: 0.4, feedback: 0.9,
       filterRoute: 0.9, sampleHold: 0.3, chaosLevel: 0.8,
       reverbAmount: 0.5, reverbSize: 0.8, delayTime: 0.3, delayFeedback: 0.4,
       grainSize: 0.4, grainDensity: 0.2, grainPitch: 0.3, grainPosition: 0.6,
@@ -184,8 +206,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'sounds',
     description: 'Explosive texture with analog warmth',
     parameters: { 
-      envelopeShape: 0.25, noiseLayer: 0.95, fmAmount: 0.1, resonance: 0.4, driveColor: 0.6,
-      crossMod: 0.1, ringMod: 0.2, lfoRate: 0.8, waveMorph: 0.2, feedback: 0.5,
+      envelopeShape: 0.25, envelopeDecay: 0.3, noiseLayer: 0.95, fmAmount: 0.1, resonance: 0.4, driveColor: 0.6,
+      crossMod: 0.1, ringMod: 0.2, lfoRate: 0.8,
+      envelopeAttack: 0.005, envelopeSustain: 0.2, envelopeRelease: 0.25, // Quick burst with tail
+      waveMorph: 0.2, feedback: 0.5,
       filterRoute: 0.2, sampleHold: 0.9, chaosLevel: 0.4,
       reverbAmount: 0.3, reverbSize: 0.5, delayTime: 0.2, delayFeedback: 0.3,
       grainSize: 0.6, grainDensity: 0.8, grainPitch: 0.2, grainPosition: 0.8,
@@ -200,8 +224,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'textures',
     description: 'Atmospheric granular synthesis with evolving textures',
     parameters: {
-      envelopeShape: 0.6, noiseLayer: 0.4, fmAmount: 0.2, resonance: 0.5, driveColor: 0.3,
-      crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2, waveMorph: 0.6, feedback: 0.3,
+      envelopeShape: 0.6, envelopeDecay: 0.8, noiseLayer: 0.4, fmAmount: 0.2, resonance: 0.5, driveColor: 0.3,
+      crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2,
+      envelopeAttack: 0.1, envelopeSustain: 0.6, envelopeRelease: 0.7, // Slow swell, long sustain
+      waveMorph: 0.6, feedback: 0.3,
       filterRoute: 0.4, sampleHold: 0.2, chaosLevel: 0.2,
       reverbAmount: 0.6, reverbSize: 0.8, delayTime: 0.5, delayFeedback: 0.4,
       grainSize: 0.8, grainDensity: 0.9, grainPitch: 0.6, grainPosition: 0.7,
@@ -215,8 +241,10 @@ const DEMO_PRESETS: Preset[] = [
     category: 'chaos',
     description: 'Unpredictable digital noise with extreme processing',
     parameters: {
-      envelopeShape: 0.3, noiseLayer: 0.8, fmAmount: 0.7, resonance: 0.6, driveColor: 0.9,
-      crossMod: 0.9, ringMod: 0.7, lfoRate: 0.8, waveMorph: 0.9, feedback: 0.6,
+      envelopeShape: 0.3, envelopeDecay: 0.4, noiseLayer: 0.8, fmAmount: 0.7, resonance: 0.6, driveColor: 0.9,
+      crossMod: 0.9, ringMod: 0.7, lfoRate: 0.8,
+      envelopeAttack: 0.02, envelopeSustain: 0.3, envelopeRelease: 0.35, // Chaotic envelope
+      waveMorph: 0.9, feedback: 0.6,
       filterRoute: 0.7, sampleHold: 0.9, chaosLevel: 0.9,
       reverbAmount: 0.4, reverbSize: 0.6, delayTime: 0.3, delayFeedback: 0.7,
       grainSize: 0.2, grainDensity: 0.7, grainPitch: 0.9, grainPosition: 0.4,
@@ -419,6 +447,10 @@ export const BobbiCussion: React.FC = () => {
       const ranges = preset.category === 'drums' ? {
         // DRUMS: Keep tight control for musical results
         envelopeShape: [0.2, 0.5],    // Medium punch, not too long
+        envelopeDecay: [0.2, 0.6],    // Short to medium decay
+        envelopeAttack: [0.001, 0.02], // Very quick attacks for drums
+        envelopeSustain: [0.05, 0.2], // Low sustain for drums
+        envelopeRelease: [0.1, 0.5],  // Quick to medium release
         noiseLayer: [0.1, 0.7],       // Controlled noise levels
         fmAmount: [0.1, 0.6],         // Moderate FM to avoid harsh chirps
         resonance: [0.2, 0.7],        // Prevent screaming resonance
@@ -439,6 +471,10 @@ export const BobbiCussion: React.FC = () => {
       } : {
         // SOUNDS: More experimental but still controlled
         envelopeShape: [0.2, 0.8],    // Wider sustain range
+        envelopeDecay: [0.15, 0.8],   // Short to long decay
+        envelopeAttack: [0.001, 0.1], // Quick to slow attacks
+        envelopeSustain: [0.1, 0.6],  // More sustain range
+        envelopeRelease: [0.1, 0.7],  // Wide release range
         noiseLayer: [0.0, 0.6],       // Can be clean or moderately noisy
         fmAmount: [0.0, 0.7],         // More FM range but not extreme
         resonance: [0.1, 0.8],        // Higher resonance but not screaming

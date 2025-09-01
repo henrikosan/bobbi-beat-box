@@ -52,152 +52,147 @@ const Knob: React.FC<KnobProps> = ({ label, value, onChange, color, min = '', ma
             document.addEventListener('mouseup', handleMouseUp);
           }}
         >
-          {/* Knob indicator line */}
           <div 
-            className="absolute w-0.5 h-6 bg-current transform -translate-y-1"
-            style={{ transform: `rotate(${rotation}deg) translateY(-50%)` }}
+            className="w-1 h-6 bg-primary rounded-full pointer-events-none"
+            style={{ transform: `rotate(${rotation}deg)` }}
           />
-          
-          {/* Center dot */}
-          <div className="w-2 h-2 bg-current rounded-full" />
-        </div>
-        
-        {/* Value indicator */}
-        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
-          <div className="text-xs text-muted-foreground font-mono">
-            {Math.round(value * 100)}
-          </div>
         </div>
       </div>
-      
       <div className="text-center">
-        <div className="text-sm font-semibold text-foreground">{label}</div>
-        {min && max && (
-          <div className="text-xs text-muted-foreground flex justify-between w-16">
-            <span>{min}</span>
-            <span>{max}</span>
-          </div>
-        )}
+        <div className="text-xs font-medium text-foreground mb-1">
+          {label}
+        </div>
+        <div className="flex justify-between text-[10px] text-muted-foreground w-16">
+          <span>{min}</span>
+          <span>{max}</span>
+        </div>
       </div>
     </div>
   );
 };
 
-export const TweakPanel: React.FC<TweakPanelProps> = ({
-  parameters,
-  onParameterChange,
-  experimentalMode,
+export const TweakPanel: React.FC<TweakPanelProps> = ({ 
+  parameters, 
+  onParameterChange, 
+  experimentalMode 
 }) => {
-  if (!experimentalMode) {
-    // Basic Mode - Simple 8-parameter layout
+  // Display current parameter values for debugging
+  const parameterDisplay = () => {
+    const relevantParams = experimentalMode 
+      ? Object.entries(parameters).slice(0, 12) 
+      : [
+          ['envelopeDecay', parameters.envelopeDecay],
+          ['noiseLayer', parameters.noiseLayer],
+          ['fmAmount', parameters.fmAmount],
+          ['resonance', parameters.resonance],
+          ['driveColor', parameters.driveColor],
+          ['crossMod', parameters.crossMod],
+          ['ringMod', parameters.ringMod],
+          ['lfoRate', parameters.lfoRate]
+        ];
+        
     return (
-      <div className="h-full">
+      <div className="mt-4 p-3 bg-background/50 rounded border">
+        <div className="text-xs text-muted-foreground mb-2">Current Values:</div>
+        <div className="grid grid-cols-4 gap-2 text-xs">
+          {relevantParams.map(([key, value]) => (
+            <div key={key} className="text-center">
+              <div className="font-medium text-primary">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+              <div className="text-muted-foreground">{typeof value === 'number' ? value.toFixed(2) : 'N/A'}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  if (!experimentalMode) {
+    // Basic mode - 8 essential knobs with new Decay control
+    return (
+      <div className="rack-panel p-6">
         <h3 className="text-lg font-semibold text-primary mb-4 flex items-center">
           <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
           Basic Controls
         </h3>
-
-        <div className="grid grid-cols-4 gap-3 justify-items-center">
-          <Knob
-            label="Attack"
-            value={parameters.envelopeShape}
-            onChange={(value) => onParameterChange('envelopeShape', value)}
-            color="cyan"
-            min="Fast"
-            max="Slow"
-          />
-          
-          <Knob
-            label="Noise"
-            value={parameters.noiseLayer}
-            onChange={(value) => onParameterChange('noiseLayer', value)}
-            color="magenta"
-            min="Clean"
-            max="Dirty"
-          />
-          
-          <Knob
-            label="FM"
-            value={parameters.fmAmount}
-            onChange={(value) => onParameterChange('fmAmount', value)}
-            color="yellow"
-            min="Soft"
-            max="Harsh"
-          />
-          
-          <Knob
-            label="Filter"
-            value={parameters.resonance}
-            onChange={(value) => onParameterChange('resonance', value)}
-            color="cyan"
-            min="Soft"
-            max="Sharp"
-          />
-          
-          <Knob
-            label="Drive"
-            value={parameters.driveColor}
-            onChange={(value) => onParameterChange('driveColor', value)}
-            color="magenta"
-            min="Clean"
-            max="Warm"
-          />
-          
-          <Knob
-            label="Cross-Mod"
-            value={parameters.crossMod}
-            onChange={(value) => onParameterChange('crossMod', value)}
-            color="yellow"
-            min="None"
-            max="Wild"
-          />
-          
-          <Knob
-            label="Ring Mod"
-            value={parameters.ringMod}
-            onChange={(value) => onParameterChange('ringMod', value)}
-            color="cyan"
-            min="Off"
-            max="Bell"
-          />
-          
-          <Knob
-            label="LFO"
-            value={parameters.lfoRate}
-            onChange={(value) => onParameterChange('lfoRate', value)}
-            color="magenta"
-            min="Slow"
-            max="Fast"
-          />
-        </div>
-
-        {/* Simple parameter display */}
-        <div className="mt-4 pt-3 border-t border-border">
-          <div className="grid grid-cols-4 gap-1 text-xs font-mono">
-            <div className="flex flex-col items-center">
-              <span className="text-muted-foreground text-xs">ATK</span>
-              <span className="text-neon-cyan text-sm">{Math.round(parameters.envelopeShape * 100)}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-muted-foreground text-xs">NOISE</span>
-              <span className="text-neon-magenta text-sm">{Math.round(parameters.noiseLayer * 100)}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-muted-foreground text-xs">FM</span>
-              <span className="text-neon-yellow text-sm">{Math.round(parameters.fmAmount * 100)}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-muted-foreground text-xs">RES</span>
-              <span className="text-neon-cyan text-sm">{Math.round(parameters.resonance * 100)}</span>
-            </div>
+        
+        <div className="flex flex-col items-center space-y-6">
+          {/* 8-knob basic interface */}
+          <div className="grid grid-cols-4 gap-3">
+            <Knob
+              label="Decay"
+              value={parameters.envelopeDecay}
+              onChange={(value) => onParameterChange('envelopeDecay', value)}
+              color="magenta"
+              min="Short"
+              max="Long"
+            />
+            <Knob
+              label="Noise"
+              value={parameters.noiseLayer}
+              onChange={(value) => onParameterChange('noiseLayer', value)}
+              color="cyan"
+              min="Clean"
+              max="Harsh"
+            />
+            <Knob
+              label="FM"
+              value={parameters.fmAmount}
+              onChange={(value) => onParameterChange('fmAmount', value)}
+              color="yellow"
+              min="Soft"
+              max="Chirp"
+            />
+            <Knob
+              label="Filter"
+              value={parameters.resonance}
+              onChange={(value) => onParameterChange('resonance', value)}
+              color="magenta"
+              min="Dull"
+              max="Sharp"
+            />
+            <Knob
+              label="Drive"
+              value={parameters.driveColor}
+              onChange={(value) => onParameterChange('driveColor', value)}
+              color="cyan"
+              min="Clean"
+              max="Warm"
+            />
+            <Knob
+              label="Cross"
+              value={parameters.crossMod}
+              onChange={(value) => onParameterChange('crossMod', value)}
+              color="yellow"
+              min="Stable"
+              max="Wild"
+            />
+            <Knob
+              label="Ring"
+              value={parameters.ringMod}
+              onChange={(value) => onParameterChange('ringMod', value)}
+              color="magenta"
+              min="Off"
+              max="Metal"
+            />
+            <Knob
+              label="LFO"
+              value={parameters.lfoRate}
+              onChange={(value) => onParameterChange('lfoRate', value)}
+              color="cyan"
+              min="Slow"
+              max="Fast"
+            />
           </div>
+          
+          {parameterDisplay()}
         </div>
       </div>
     );
   }
 
-  // Experimental Mode - Tabbed interface with all parameters
+  // Experimental mode - Full tabbed interface with ADSR controls
   return (
+    <div className="rack-panel p-6">
     <div className="h-full">
       <h3 className="text-lg font-semibold text-primary mb-4 flex items-center">
         <div className="w-2 h-2 bg-neon-magenta rounded-full mr-2"></div>
@@ -212,31 +207,53 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
         </TabsList>
 
         <TabsContent value="synthesis" className="space-y-4">
+          {/* Envelope Section */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-muted-foreground text-center">Envelope (ADSR)</h4>
+            <div className="grid grid-cols-4 gap-2 justify-items-center">
+              <Knob
+                label="Attack"
+                value={parameters.envelopeAttack}
+                onChange={(value) => onParameterChange('envelopeAttack', value)}
+                color="magenta"
+                min="1ms"
+                max="100ms"
+              />
+              <Knob
+                label="Decay"
+                value={parameters.envelopeDecay}
+                onChange={(value) => onParameterChange('envelopeDecay', value)}
+                color="magenta"
+                min="10ms"
+                max="2s"
+              />
+              <Knob
+                label="Sustain"
+                value={parameters.envelopeSustain}
+                onChange={(value) => onParameterChange('envelopeSustain', value)}
+                color="magenta"
+                min="0%"
+                max="80%"
+              />
+              <Knob
+                label="Release"
+                value={parameters.envelopeRelease}
+                onChange={(value) => onParameterChange('envelopeRelease', value)}
+                color="magenta"
+                min="10ms"
+                max="3s"
+              />
+            </div>
+          </div>
+
+          {/* Core Synthesis Parameters */}
           <div className="grid grid-cols-4 gap-2 justify-items-center">
             <Knob
-              label="Envelope"
-              value={parameters.envelopeShape}
-              onChange={(value) => onParameterChange('envelopeShape', value)}
-              color="cyan"
-              min="Short"
-              max="Long"
-            />
-            
-            <Knob
-              label="Cross-Mod"
-              value={parameters.crossMod}
-              onChange={(value) => onParameterChange('crossMod', value)}
-              color="magenta"
-              min="None"
-              max="Wild"
-            />
-            
-            <Knob
-              label="Ring Mod"
-              value={parameters.ringMod}
-              onChange={(value) => onParameterChange('ringMod', value)}
+              label="FM Amount"
+              value={parameters.fmAmount}
+              onChange={(value) => onParameterChange('fmAmount', value)}
               color="yellow"
-              min="Off"
+              min="Pure"
               max="Bell"
             />
             
@@ -282,34 +299,52 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
               onChange={(value) => onParameterChange('filterRoute', value)}
               color="magenta"
               min="Series"
-              max="Complex"
-            />
-            
-            <Knob
-              label="FM Amount"
-              value={parameters.fmAmount}
-              onChange={(value) => onParameterChange('fmAmount', value)}
-              color="yellow"
-              min="Subtle"
-              max="Harsh"
-            />
-            
-            <Knob
-              label="S&H Rate"
-              value={parameters.sampleHold}
-              onChange={(value) => onParameterChange('sampleHold', value)}
-              color="cyan"
-              min="Smooth"
-              max="Stepped"
+              max="Parallel"
             />
             
             <Knob
               label="Resonance"
               value={parameters.resonance}
               onChange={(value) => onParameterChange('resonance', value)}
-              color="magenta"
+              color="yellow"
               min="Soft"
               max="Sharp"
+            />
+            
+            <Knob
+              label="Drive Color"
+              value={parameters.driveColor}
+              onChange={(value) => onParameterChange('driveColor', value)}
+              color="cyan"
+              min="Clean"
+              max="Warm"
+            />
+            
+            <Knob
+              label="Cross Mod"
+              value={parameters.crossMod}
+              onChange={(value) => onParameterChange('crossMod', value)}
+              color="magenta"
+              min="Off"
+              max="Wild"
+            />
+            
+            <Knob
+              label="Ring Mod"
+              value={parameters.ringMod}
+              onChange={(value) => onParameterChange('ringMod', value)}
+              color="yellow"
+              min="Off"
+              max="Metal"
+            />
+            
+            <Knob
+              label="Sample Hold"
+              value={parameters.sampleHold}
+              onChange={(value) => onParameterChange('sampleHold', value)}
+              color="cyan"
+              min="Smooth"
+              max="Step"
             />
             
             <Knob
@@ -339,7 +374,7 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
               value={parameters.reverbSize}
               onChange={(value) => onParameterChange('reverbSize', value)}
               color="magenta"
-              min="Small"
+              min="Closet"
               max="Cathedral"
             />
             
@@ -348,12 +383,12 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
               value={parameters.delayTime}
               onChange={(value) => onParameterChange('delayTime', value)}
               color="yellow"
-              min="Fast"
-              max="Slow"
+              min="Tight"
+              max="Spacious"
             />
             
             <Knob
-              label="Delay FB"
+              label="Delay Feedback"
               value={parameters.delayFeedback}
               onChange={(value) => onParameterChange('delayFeedback', value)}
               color="cyan"
@@ -362,158 +397,132 @@ export const TweakPanel: React.FC<TweakPanelProps> = ({
             />
             
             <Knob
-              label="Drive Color"
-              value={parameters.driveColor}
-              onChange={(value) => onParameterChange('driveColor', value)}
-              color="magenta"
-              min="Clean"
-              max="Saturated"
-            />
-            
-            <Knob
               label="Bit Crusher"
               value={parameters.bitCrusher}
               onChange={(value) => onParameterChange('bitCrusher', value)}
-              color="yellow"
-              min="16-bit"
-              max="1-bit"
+              color="magenta"
+              min="Clean"
+              max="Lo-Fi"
             />
             
             <Knob
-              label="Freq Shifter"
+              label="Freq Shift"
               value={parameters.freqShifter}
               onChange={(value) => onParameterChange('freqShifter', value)}
-              color="cyan"
-              min="Normal"
-              max="Shifted"
-            />
-            
-            <Knob
-              label="Formant"
-              value={parameters.formantFilter}
-              onChange={(value) => onParameterChange('formantFilter', value)}
-              color="magenta"
-              min="Natural"
-              max="Vocal"
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="experimental" className="space-y-4">
-          <div className="grid grid-cols-4 gap-2 justify-items-center">
-            <Knob
-              label="Grain Size"
-              value={parameters.grainSize}
-              onChange={(value) => onParameterChange('grainSize', value)}
-              color="cyan"
-              min="Tiny"
-              max="Large"
-            />
-            
-            <Knob
-              label="Grain Density"
-              value={parameters.grainDensity}
-              onChange={(value) => onParameterChange('grainDensity', value)}
-              color="magenta"
-              min="Sparse"
-              max="Dense"
-            />
-            
-            <Knob
-              label="Grain Pitch"
-              value={parameters.grainPitch}
-              onChange={(value) => onParameterChange('grainPitch', value)}
               color="yellow"
               min="Down"
               max="Up"
             />
             
             <Knob
-              label="Grain Pos"
-              value={parameters.grainPosition}
-              onChange={(value) => onParameterChange('grainPosition', value)}
+              label="Formant"
+              value={parameters.formantFilter}
+              onChange={(value) => onParameterChange('formantFilter', value)}
               color="cyan"
-              min="Start"
-              max="End"
-            />
-            
-            <Knob
-              label="Matrix Depth"
-              value={parameters.matrixDepth}
-              onChange={(value) => onParameterChange('matrixDepth', value)}
-              color="magenta"
-              min="Simple"
-              max="Complex"
-            />
-            
-            <Knob
-              label="Voltage Drift"
-              value={parameters.voltageDrift}
-              onChange={(value) => onParameterChange('voltageDrift', value)}
-              color="yellow"
-              min="Stable"
-              max="Unstable"
-            />
-            
-            <Knob
-              label="CV Sequencer"
-              value={parameters.cvSequencer}
-              onChange={(value) => onParameterChange('cvSequencer', value)}
-              color="cyan"
-              min="Static"
-              max="Motion"
-            />
-            
-            <Knob
-              label="Mod Wheel"
-              value={parameters.modWheel}
-              onChange={(value) => onParameterChange('modWheel', value)}
-              color="magenta"
-              min="None"
-              max="Full"
+              min="Neutral"
+              max="Vocal"
             />
             
             <Knob
               label="Waveshaper"
               value={parameters.waveshaperDrive}
               onChange={(value) => onParameterChange('waveshaperDrive', value)}
-              color="yellow"
-              min="Linear"
+              color="magenta"
+              min="Soft"
               max="Extreme"
             />
           </div>
         </TabsContent>
+
+        <TabsContent value="experimental" className="space-y-4">
+          {/* Granular Synthesis */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-muted-foreground text-center">Granular Synthesis</h4>
+            <div className="grid grid-cols-4 gap-2 justify-items-center">
+              <Knob
+                label="Grain Size"
+                value={parameters.grainSize}
+                onChange={(value) => onParameterChange('grainSize', value)}
+                color="cyan"
+                min="Micro"
+                max="Macro"
+              />
+              
+              <Knob
+                label="Grain Density"
+                value={parameters.grainDensity}
+                onChange={(value) => onParameterChange('grainDensity', value)}
+                color="magenta"
+                min="Sparse"
+                max="Dense"
+              />
+              
+              <Knob
+                label="Grain Pitch"
+                value={parameters.grainPitch}
+                onChange={(value) => onParameterChange('grainPitch', value)}
+                color="yellow"
+                min="Down"
+                max="Up"
+              />
+              
+              <Knob
+                label="Grain Position"
+                value={parameters.grainPosition}
+                onChange={(value) => onParameterChange('grainPosition', value)}
+                color="cyan"
+                min="Start"
+                max="End"
+              />
+            </div>
+          </div>
+
+          {/* Advanced Modulation */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-muted-foreground text-center">Advanced Modulation</h4>
+            <div className="grid grid-cols-4 gap-2 justify-items-center">
+              <Knob
+                label="Matrix Depth"
+                value={parameters.matrixDepth}
+                onChange={(value) => onParameterChange('matrixDepth', value)}
+                color="magenta"
+                min="Simple"
+                max="Complex"
+              />
+              
+              <Knob
+                label="Voltage Drift"
+                value={parameters.voltageDrift}
+                onChange={(value) => onParameterChange('voltageDrift', value)}
+                color="yellow"
+                min="Stable"
+                max="Analog"
+              />
+              
+              <Knob
+                label="CV Sequencer"
+                value={parameters.cvSequencer}
+                onChange={(value) => onParameterChange('cvSequencer', value)}
+                color="cyan"
+                min="Off"
+                max="Active"
+              />
+              
+              <Knob
+                label="Mod Wheel"
+                value={parameters.modWheel}
+                onChange={(value) => onParameterChange('modWheel', value)}
+                color="magenta"
+                min="None"
+                max="Extreme"
+              />
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
-      {/* Enhanced Parameter Display */}
-      <div className="mt-4 pt-3 border-t border-border">
-        <div className="grid grid-cols-6 gap-1 text-xs font-mono">
-          <div className="flex flex-col items-center">
-            <span className="text-muted-foreground text-xs">ENV</span>
-            <span className="text-neon-cyan text-sm">{Math.round(parameters.envelopeShape * 100)}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-muted-foreground text-xs">X-MOD</span>
-            <span className="text-neon-magenta text-sm">{Math.round(parameters.crossMod * 100)}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-muted-foreground text-xs">RING</span>
-            <span className="text-neon-yellow text-sm">{Math.round(parameters.ringMod * 100)}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-muted-foreground text-xs">GRAIN</span>
-            <span className="text-neon-cyan text-sm">{Math.round(parameters.grainSize * 100)}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-muted-foreground text-xs">MATRIX</span>
-            <span className="text-neon-magenta text-sm">{Math.round(parameters.matrixDepth * 100)}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-muted-foreground text-xs">CHAOS</span>
-            <span className="text-neon-yellow text-sm">{Math.round(parameters.chaosLevel * 100)}</span>
-          </div>
-        </div>
-      </div>
+      {parameterDisplay()}
+    </div>
     </div>
   );
 };

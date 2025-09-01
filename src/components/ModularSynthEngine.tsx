@@ -185,11 +185,21 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   const envelopeCV = ctx.createGain();
   const filterCV = ctx.createGain();
   
-  // Create complex envelope shapes for "pumping" character - ensure proper timing for offline context
-  const attackTime = Math.max(0.002, 0.005 + safeParam(synthParams.envelopeShape) * 0.08);
-  const decayTime = attackTime * (3 + safeParam(synthParams.envelopeShape) * 8);
-  const sustainLevel = selectedPreset.category === 'drums' ? 0.05 : safeParam(synthParams.envelopeShape) * 0.5;
-  const releaseTime = duration * (0.4 + safeParam(synthParams.envelopeShape) * 0.6);
+  // Create complex envelope shapes for "pumping" character - using new ADSR parameters
+  let attackTime = Math.max(0.001, 0.001 + safeParam(synthParams.envelopeAttack, 0, 1) * 0.099);  // 1ms to 100ms
+  let decayTime = Math.max(0.01, 0.01 + safeParam(synthParams.envelopeDecay, 0, 1) * 1.99);      // 10ms to 2s
+  let sustainLevel = Math.max(0.001, safeParam(synthParams.envelopeSustain, 0, 1) * 0.8);         // 0% to 80%
+  let releaseTime = Math.max(0.01, 0.01 + safeParam(synthParams.envelopeRelease, 0, 1) * 2.99);  // 10ms to 3s
+  
+  // Fallback to envelopeShape for backward compatibility if new parameters aren't available
+  const useEnvelopeShape = !synthParams.envelopeAttack && !synthParams.envelopeDecay;
+  if (useEnvelopeShape) {
+    const envelopeShape = safeParam(synthParams.envelopeShape, 0, 1);
+    attackTime = Math.max(0.002, 0.005 + envelopeShape * 0.08);
+    decayTime = attackTime * (3 + envelopeShape * 8);
+    sustainLevel = selectedPreset.category === 'drums' ? 0.05 : envelopeShape * 0.5;
+    releaseTime = duration * (0.4 + envelopeShape * 0.6);
+  }
   
   // VOLTAGE-CONTROLLED AMPLIFIER (VCA) with pumping action
   const vca = ctx.createGain();
