@@ -205,22 +205,29 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   const vca = ctx.createGain();
   vca.gain.setValueAtTime(0, now);
   
-  // Envelope automation with proper offline context timing
+  // Envelope automation with proper offline context timing and safe time calculations
   if (selectedPreset.category === 'drums') {
     // Punchy drum envelope with sharp attack
+    const endTime = Math.max(now + attackTime + decayTime + 0.05, now + duration);
+    const releaseStart = Math.max(now + attackTime + decayTime, endTime - 0.02);
+    
     vca.gain.setValueAtTime(0, now);
     vca.gain.linearRampToValueAtTime(1.0, now + attackTime);
     vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.02);
-    vca.gain.setValueAtTime(0, now + duration);
+    vca.gain.exponentialRampToValueAtTime(0.001, releaseStart);
+    vca.gain.setValueAtTime(0, endTime);
   } else {
     // More sustained envelope for sounds with voltage-style curves
+    const endTime = Math.max(now + attackTime + decayTime + releaseTime + 0.02, now + duration);
+    const releaseStart = Math.max(now + attackTime + decayTime, endTime - releaseTime);
+    const finalRelease = Math.max(releaseStart + 0.01, endTime - 0.01);
+    
     vca.gain.setValueAtTime(0, now);
     vca.gain.linearRampToValueAtTime(0.9, now + attackTime);
     vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel * 0.3), now + duration - releaseTime);
-    vca.gain.exponentialRampToValueAtTime(0.001, now + duration - 0.01);
-    vca.gain.setValueAtTime(0, now + duration);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel * 0.3), releaseStart);
+    vca.gain.exponentialRampToValueAtTime(0.001, finalRelease);
+    vca.gain.setValueAtTime(0, endTime);
   }
   
   // LOW FREQUENCY OSCILLATOR (LFO) - Voltage-controlled modulation
