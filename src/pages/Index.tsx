@@ -1,5 +1,5 @@
 import React from 'react';
-import SimpleBobbiCussion from '../components/SimpleBobbiCussion';
+import BobbiCussion from '../components/BobbiCussion';
 
 const Index = () => {
   console.log('Index component rendering...');
@@ -7,8 +7,8 @@ const Index = () => {
   try {
     return (
       <div>
-        <h1 style={{color: 'white', padding: '20px'}}>Loading BobbiCussion...</h1>
-        <SimpleBobbiCussion />
+        <h1 style={{color: 'white', padding: '20px'}}>Testing BobbiCussion...</h1>
+        <BobbiCussion />
       </div>
     );
   } catch (error) {

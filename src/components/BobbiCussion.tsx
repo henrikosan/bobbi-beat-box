@@ -165,8 +165,14 @@ const DEMO_PRESETS: Preset[] = [
 ];
 
 export const BobbiCussion: React.FC = () => {
+  console.log('BobbiCussion component starting...');
+  
   const [selectedPreset, setSelectedPreset] = useState<Preset>(DEMO_PRESETS[0]);
+  console.log('selectedPreset state initialized');
+  
   const [synthParams, setSynthParams] = useState<SynthParams>(DEMO_PRESETS[0].parameters);
+  console.log('synthParams state initialized');
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -174,7 +180,12 @@ export const BobbiCussion: React.FC = () => {
   const [sampleLength, setSampleLength] = useState(22050);
   const audioContextRef = useRef<AudioContext | null>(null);
   const waveformRef = useRef<number[]>([]);
+  
+  console.log('About to initialize useToast...');
   const { toast } = useToast();
+  console.log('useToast initialized successfully');
+  
+  console.log('All state initialized, moving to effects...');
 
   // Initialize Web Audio Context
   useEffect(() => {
