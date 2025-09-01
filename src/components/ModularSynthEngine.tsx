@@ -597,5 +597,140 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   vco2.stop(stopTime);
   noiseSource.stop(stopTime); // Ensure noise stops at exact time
   
+  // EXPERIMENTAL FEATURES INTEGRATION
+  
+  // GRANULAR SYNTHESIS LAYER
+  if (synthParams.grainSize > 0.1 || synthParams.grainDensity > 0.1) {
+    const grainSizeMs = 1 + (synthParams.grainSize * 49); // 1-50ms
+    const grainDensity = 2 + (synthParams.grainDensity * 18); // 2-20 grains
+    const grainPitchShift = 0.5 + (synthParams.grainPitch * 1.5); // 0.5x to 2x pitch
+    
+    // Create multiple grain sources
+    for (let g = 0; g < Math.floor(grainDensity); g++) {
+      const grainDelay = (g / grainDensity) * 0.1; // Spread grains over 100ms
+      const grainBuffer = ctx.createBuffer(1, Math.floor(grainSizeMs / 1000 * ctx.sampleRate), ctx.sampleRate);
+      const grainData = grainBuffer.getChannelData(0);
+      
+      // Fill grain with wavetable sample
+      for (let i = 0; i < grainData.length; i++) {
+        const phase = (i / grainData.length) * grainPitchShift;
+        grainData[i] = getWavetableSample(wavetables, synthParams.grainPosition, phase) * 0.3;
+      }
+      
+      const grainSource = ctx.createBufferSource();
+      grainSource.buffer = grainBuffer;
+      grainSource.playbackRate.value = grainPitchShift;
+      grainSource.connect(finalMixer);
+      grainSource.start(now + grainDelay);
+      grainSource.stop(stopTime);
+    }
+  }
+  
+  // BIT CRUSHER EFFECT
+  if (synthParams.bitCrusher > 0.01) {
+    const bitCrusherNode = ctx.createScriptProcessor ? ctx.createScriptProcessor(1024, 1, 1) : null;
+    if (bitCrusherNode) {
+      const bitDepth = Math.max(1, Math.floor(16 - (synthParams.bitCrusher * 15))); // 16-bit to 1-bit
+      const sampleRateReduction = 1 - (synthParams.bitCrusher * 0.9); // Up to 90% reduction
+      
+      let lastSample = 0;
+      let sampleCounter = 0;
+      
+      bitCrusherNode.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        const output = e.outputBuffer.getChannelData(0);
+        
+        for (let i = 0; i < input.length; i++) {
+          sampleCounter++;
+          
+          if (sampleCounter >= 1 / sampleRateReduction) {
+            const step = Math.pow(2, bitDepth - 1);
+            lastSample = Math.round(input[i] * step) / step;
+            sampleCounter = 0;
+          }
+          
+          output[i] = lastSample;
+        }
+      };
+      
+      // Insert bit crusher in the chain
+      finalMixer.disconnect(masterSaturation);
+      finalMixer.connect(bitCrusherNode);
+      bitCrusherNode.connect(masterSaturation);
+    }
+  }
+  
+  // FREQUENCY SHIFTER
+  if (synthParams.freqShifter > 0.01) {
+    const shiftAmount = (synthParams.freqShifter - 0.5) * 200; // ±100Hz shift
+    const shiftOsc = ctx.createOscillator();
+    shiftOsc.frequency.value = Math.abs(shiftAmount);
+    shiftOsc.type = 'sine';
+    
+    const ringModGain = ctx.createGain();
+    shiftOsc.connect(ringModGain.gain);
+    
+    // Apply non-harmonic frequency shifting
+    finalMixer.connect(ringModGain);
+    
+    shiftOsc.start(now);
+    shiftOsc.stop(stopTime);
+  }
+  
+  // VOLTAGE DRIFT (Analog instability simulation)
+  if (synthParams.voltageDrift > 0.01) {
+    const driftRate = synthParams.voltageDrift * 2; // 0-2Hz drift
+    const driftLFO = ctx.createOscillator();
+    driftLFO.frequency.value = driftRate;
+    driftLFO.type = 'triangle';
+    
+    const driftGain = ctx.createGain();
+    driftGain.gain.value = synthParams.voltageDrift * 20; // Up to 20Hz drift
+    
+    driftLFO.connect(driftGain);
+    driftGain.connect(vcf1.frequency);
+    driftGain.connect(vcf2.frequency);
+    
+    driftLFO.start(now);
+    driftLFO.stop(stopTime);
+  }
+  
+  // MATRIX DEPTH (Complex cross-modulation)
+  if (synthParams.matrixDepth > 0.1) {
+    const matrixGain1 = ctx.createGain();
+    const matrixGain2 = ctx.createGain();
+    
+    matrixGain1.gain.value = synthParams.matrixDepth * 0.3;
+    matrixGain2.gain.value = synthParams.matrixDepth * 0.2;
+    
+    // Cross-modulation matrix
+    lfo1.connect(matrixGain1);
+    matrixGain1.connect(vcf2.frequency);
+    
+    lfo2.connect(matrixGain2);
+    matrixGain2.connect(vcf1.frequency);
+  }
+  
+  // WAVESHAPER DRIVE (Additional nonlinear distortion)
+  if (synthParams.waveshaperDrive > 0.1) {
+    const waveshaper = ctx.createWaveShaper();
+    const samples = 1024;
+    const curve = new Float32Array(samples);
+    const driveAmount = 1 + (synthParams.waveshaperDrive * 19); // 1x to 20x drive
+    
+    for (let i = 0; i < samples; i++) {
+      const x = (i - samples/2) / (samples/2);
+      curve[i] = Math.tanh(x * driveAmount) / Math.tanh(driveAmount);
+    }
+    
+    waveshaper.curve = curve;
+    waveshaper.oversample = '4x';
+    
+    // Insert waveshaper in the signal chain
+    masterSaturation.disconnect();
+    masterSaturation.connect(waveshaper);
+    waveshaper.connect(ctx.destination);
+  }
+
   return duration * 1000; // Return duration in milliseconds
 };

@@ -3,6 +3,7 @@ import { PresetBrowser } from './PresetBrowser';
 import { TweakPanel } from './TweakPanel';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { TriggerButton } from './TriggerButton';
+import { Switch } from './ui/switch';
 import { generateModularSound } from './ModularSynthEngine';
 import { 
   exportPTWavV2, 
@@ -20,54 +21,51 @@ import { useToast } from '../hooks/use-toast';
 export interface Preset {
   id: string;
   name: string;
-  category: 'drums' | 'sounds';
+  category: 'drums' | 'sounds' | 'textures' | 'chaos' | 'physical';
   description: string;
-  parameters: {
-    envelopeShape: number;
-    noiseLayer: number;
-    fmAmount: number;
-    resonance: number;
-    driveColor: number;
-    crossMod: number;
-    ringMod: number;
-    lfoRate: number;
-    waveMorph: number;
-    feedback: number;
-    filterRoute: number;
-    sampleHold: number;
-    chaosLevel: number;
-    // Effects parameters
-    reverbAmount: number;
-    reverbSize: number;
-    delayTime: number;
-    delayFeedback: number;
-  };
+  parameters: SynthParams;
 }
 
 // Enhanced modular sound engine parameters
 export interface SynthParams {
+  // Basic parameters (always visible)
   envelopeShape: number;
   noiseLayer: number;
   fmAmount: number;
   resonance: number;
   driveColor: number;
-  // New modular parameters
   crossMod: number;
   ringMod: number;
   lfoRate: number;
+  
+  // Advanced parameters
   waveMorph: number;
   feedback: number;
   filterRoute: number;
   sampleHold: number;
   chaosLevel: number;
-  // Effects parameters
   reverbAmount: number;
   reverbSize: number;
   delayTime: number;
   delayFeedback: number;
+  
+  // Experimental parameters (only in experimental mode)
+  grainSize: number;
+  grainDensity: number;
+  grainPitch: number;
+  grainPosition: number;
+  matrixDepth: number;
+  voltageDrift: number;
+  cvSequencer: number;
+  modWheel: number;
+  bitCrusher: number;
+  freqShifter: number;
+  formantFilter: number;
+  waveshaperDrive: number;
 }
 
 const defaultParams: SynthParams = {
+  // Basic parameters
   envelopeShape: 0.3,
   noiseLayer: 0.2,
   fmAmount: 0.4,
@@ -76,19 +74,34 @@ const defaultParams: SynthParams = {
   crossMod: 0.2,
   ringMod: 0.1,
   lfoRate: 0.3,
+  
+  // Advanced parameters
   waveMorph: 0.5,
   feedback: 0.1,
   filterRoute: 0.4,
   sampleHold: 0.2,
   chaosLevel: 0.1,
-  // Effects defaults
   reverbAmount: 0.2,
   reverbSize: 0.5,
   delayTime: 0.3,
   delayFeedback: 0.4,
+  
+  // Experimental parameters
+  grainSize: 0.3,
+  grainDensity: 0.4,
+  grainPitch: 0.5,
+  grainPosition: 0.5,
+  matrixDepth: 0.2,
+  voltageDrift: 0.1,
+  cvSequencer: 0.3,
+  modWheel: 0.5,
+  bitCrusher: 0.0,
+  freqShifter: 0.0,
+  formantFilter: 0.5,
+  waveshaperDrive: 0.3,
 };
 
-// Enhanced modular presets
+// Enhanced modular presets with experimental parameters
 const DEMO_PRESETS: Preset[] = [
   {
     id: 'kick-1',
@@ -99,7 +112,10 @@ const DEMO_PRESETS: Preset[] = [
       envelopeShape: 0.8, noiseLayer: 0.1, fmAmount: 0.6, resonance: 0.3, driveColor: 0.7,
       crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2, waveMorph: 0.3, feedback: 0.2, 
       filterRoute: 0.4, sampleHold: 0.1, chaosLevel: 0.1,
-      reverbAmount: 0.1, reverbSize: 0.3, delayTime: 0.0, delayFeedback: 0.1
+      reverbAmount: 0.1, reverbSize: 0.3, delayTime: 0.0, delayFeedback: 0.1,
+      grainSize: 0.2, grainDensity: 0.3, grainPitch: 0.5, grainPosition: 0.4,
+      matrixDepth: 0.1, voltageDrift: 0.05, cvSequencer: 0.2, modWheel: 0.3,
+      bitCrusher: 0.0, freqShifter: 0.0, formantFilter: 0.4, waveshaperDrive: 0.2
     }
   },
   {
@@ -111,7 +127,10 @@ const DEMO_PRESETS: Preset[] = [
       envelopeShape: 0.2, noiseLayer: 0.8, fmAmount: 0.3, resonance: 0.7, driveColor: 0.4,
       crossMod: 0.5, ringMod: 0.6, lfoRate: 0.7, waveMorph: 0.8, feedback: 0.3,
       filterRoute: 0.6, sampleHold: 0.4, chaosLevel: 0.3,
-      reverbAmount: 0.3, reverbSize: 0.4, delayTime: 0.2, delayFeedback: 0.3
+      reverbAmount: 0.3, reverbSize: 0.4, delayTime: 0.2, delayFeedback: 0.3,
+      grainSize: 0.1, grainDensity: 0.6, grainPitch: 0.7, grainPosition: 0.3,
+      matrixDepth: 0.4, voltageDrift: 0.2, cvSequencer: 0.5, modWheel: 0.6,
+      bitCrusher: 0.2, freqShifter: 0.1, formantFilter: 0.8, waveshaperDrive: 0.4
     }
   },
   {
@@ -123,7 +142,10 @@ const DEMO_PRESETS: Preset[] = [
       envelopeShape: 0.1, noiseLayer: 0.9, fmAmount: 0.2, resonance: 0.8, driveColor: 0.2,
       crossMod: 0.2, ringMod: 0.9, lfoRate: 0.9, waveMorph: 0.7, feedback: 0.1,
       filterRoute: 0.8, sampleHold: 0.8, chaosLevel: 0.2,
-      reverbAmount: 0.4, reverbSize: 0.6, delayTime: 0.1, delayFeedback: 0.2
+      reverbAmount: 0.4, reverbSize: 0.6, delayTime: 0.1, delayFeedback: 0.2,
+      grainSize: 0.05, grainDensity: 0.9, grainPitch: 0.8, grainPosition: 0.9,
+      matrixDepth: 0.3, voltageDrift: 0.4, cvSequencer: 0.8, modWheel: 0.7,
+      bitCrusher: 0.3, freqShifter: 0.2, formantFilter: 0.9, waveshaperDrive: 0.1
     }
   },
   {
@@ -135,7 +157,10 @@ const DEMO_PRESETS: Preset[] = [
       envelopeShape: 0.15, noiseLayer: 0.3, fmAmount: 0.9, resonance: 0.6, driveColor: 0.5,
       crossMod: 0.8, ringMod: 0.4, lfoRate: 0.6, waveMorph: 0.9, feedback: 0.4,
       filterRoute: 0.3, sampleHold: 0.6, chaosLevel: 0.5,
-      reverbAmount: 0.2, reverbSize: 0.7, delayTime: 0.4, delayFeedback: 0.5
+      reverbAmount: 0.2, reverbSize: 0.7, delayTime: 0.4, delayFeedback: 0.5,
+      grainSize: 0.3, grainDensity: 0.4, grainPitch: 0.9, grainPosition: 0.2,
+      matrixDepth: 0.7, voltageDrift: 0.1, cvSequencer: 0.3, modWheel: 0.8,
+      bitCrusher: 0.1, freqShifter: 0.3, formantFilter: 0.6, waveshaperDrive: 0.6
     }
   },
   {
@@ -147,7 +172,10 @@ const DEMO_PRESETS: Preset[] = [
       envelopeShape: 0.4, noiseLayer: 0.7, fmAmount: 0.5, resonance: 0.9, driveColor: 0.8,
       crossMod: 0.7, ringMod: 0.8, lfoRate: 0.3, waveMorph: 0.4, feedback: 0.9,
       filterRoute: 0.9, sampleHold: 0.3, chaosLevel: 0.8,
-      reverbAmount: 0.5, reverbSize: 0.8, delayTime: 0.3, delayFeedback: 0.4
+      reverbAmount: 0.5, reverbSize: 0.8, delayTime: 0.3, delayFeedback: 0.4,
+      grainSize: 0.4, grainDensity: 0.2, grainPitch: 0.3, grainPosition: 0.6,
+      matrixDepth: 0.8, voltageDrift: 0.3, cvSequencer: 0.2, modWheel: 0.4,
+      bitCrusher: 0.4, freqShifter: 0.5, formantFilter: 0.3, waveshaperDrive: 0.8
     }
   },
   {
@@ -159,7 +187,41 @@ const DEMO_PRESETS: Preset[] = [
       envelopeShape: 0.25, noiseLayer: 0.95, fmAmount: 0.1, resonance: 0.4, driveColor: 0.6,
       crossMod: 0.1, ringMod: 0.2, lfoRate: 0.8, waveMorph: 0.2, feedback: 0.5,
       filterRoute: 0.2, sampleHold: 0.9, chaosLevel: 0.4,
-      reverbAmount: 0.3, reverbSize: 0.5, delayTime: 0.2, delayFeedback: 0.3
+      reverbAmount: 0.3, reverbSize: 0.5, delayTime: 0.2, delayFeedback: 0.3,
+      grainSize: 0.6, grainDensity: 0.8, grainPitch: 0.2, grainPosition: 0.8,
+      matrixDepth: 0.2, voltageDrift: 0.6, cvSequencer: 0.9, modWheel: 0.2,
+      bitCrusher: 0.5, freqShifter: 0.0, formantFilter: 0.2, waveshaperDrive: 0.3
+    }
+  },
+  // New experimental presets
+  {
+    id: 'granular-texture-1',
+    name: 'Granular Cloud',
+    category: 'textures',
+    description: 'Atmospheric granular synthesis with evolving textures',
+    parameters: {
+      envelopeShape: 0.6, noiseLayer: 0.4, fmAmount: 0.2, resonance: 0.5, driveColor: 0.3,
+      crossMod: 0.3, ringMod: 0.1, lfoRate: 0.2, waveMorph: 0.6, feedback: 0.3,
+      filterRoute: 0.4, sampleHold: 0.2, chaosLevel: 0.2,
+      reverbAmount: 0.6, reverbSize: 0.8, delayTime: 0.5, delayFeedback: 0.4,
+      grainSize: 0.8, grainDensity: 0.9, grainPitch: 0.6, grainPosition: 0.7,
+      matrixDepth: 0.5, voltageDrift: 0.3, cvSequencer: 0.4, modWheel: 0.7,
+      bitCrusher: 0.0, freqShifter: 0.2, formantFilter: 0.6, waveshaperDrive: 0.2
+    }
+  },
+  {
+    id: 'chaos-generator-1',
+    name: 'Digital Chaos',
+    category: 'chaos',
+    description: 'Unpredictable digital noise with extreme processing',
+    parameters: {
+      envelopeShape: 0.3, noiseLayer: 0.8, fmAmount: 0.7, resonance: 0.6, driveColor: 0.9,
+      crossMod: 0.9, ringMod: 0.7, lfoRate: 0.8, waveMorph: 0.9, feedback: 0.6,
+      filterRoute: 0.7, sampleHold: 0.9, chaosLevel: 0.9,
+      reverbAmount: 0.4, reverbSize: 0.6, delayTime: 0.3, delayFeedback: 0.7,
+      grainSize: 0.2, grainDensity: 0.7, grainPitch: 0.9, grainPosition: 0.4,
+      matrixDepth: 0.9, voltageDrift: 0.8, cvSequencer: 0.8, modWheel: 0.9,
+      bitCrusher: 0.8, freqShifter: 0.6, formantFilter: 0.4, waveshaperDrive: 0.9
     }
   }
 ];
@@ -168,11 +230,11 @@ export const BobbiCussion: React.FC = () => {
   console.log('BobbiCussion component starting...');
   
   const [selectedPreset, setSelectedPreset] = useState<Preset>(DEMO_PRESETS[0]);
-  console.log('selectedPreset state initialized');
-  
-  const [synthParams, setSynthParams] = useState<SynthParams>(DEMO_PRESETS[0].parameters);
-  console.log('synthParams state initialized');
-  
+  const [synthParams, setSynthParams] = useState<SynthParams>(() => {
+    // Initialize with default experimental parameters
+    return { ...DEMO_PRESETS[0].parameters, ...defaultParams };
+  });
+  const [experimentalMode, setExperimentalMode] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -181,11 +243,7 @@ export const BobbiCussion: React.FC = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const waveformRef = useRef<number[]>([]);
   
-  console.log('About to initialize useToast...');
   const { toast } = useToast();
-  console.log('useToast initialized successfully');
-  
-  console.log('All state initialized, moving to effects...');
 
   // Initialize Web Audio Context
   useEffect(() => {
@@ -599,11 +657,39 @@ export const BobbiCussion: React.FC = () => {
             />
           </div>
 
+          {/* Mode Toggle - Add above Tweak Panel */}
+          <div className="rack-panel p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-primary mb-1">
+                  Synthesis Mode
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {experimentalMode ? 'Advanced controls & experimental features' : 'Essential controls only'}
+                </p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className={`text-sm ${!experimentalMode ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                  Basic
+                </span>
+                <Switch
+                  checked={experimentalMode}
+                  onCheckedChange={setExperimentalMode}
+                  className="data-[state=checked]:bg-neon-magenta"
+                />
+                <span className={`text-sm ${experimentalMode ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                  Experimental
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Tweak Panel - Center */}
           <div className="rack-panel p-6">
             <TweakPanel
               parameters={synthParams}
               onParameterChange={handleParamChange}
+              experimentalMode={experimentalMode}
             />
           </div>
 
