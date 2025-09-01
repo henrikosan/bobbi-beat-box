@@ -171,6 +171,7 @@ export const BobbiCussion: React.FC = () => {
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [sampleLength, setSampleLength] = useState(22050);
   const audioContextRef = useRef<AudioContext | null>(null);
   const waveformRef = useRef<number[]>([]);
   const { toast } = useToast();
@@ -245,7 +246,7 @@ export const BobbiCussion: React.FC = () => {
   }, [generateSound]);
 
   // PT-WAV Export functionality - Render & Conditioning Pipeline
-  const renderAudioToBuffer = useCallback(async (currentSynthParams: SynthParams, preset: Preset): Promise<Float32Array> => {
+  const renderAudioToBuffer = useCallback(async (currentSynthParams: SynthParams, preset: Preset, customSampleLength?: number): Promise<Float32Array> => {
     if (!audioContextRef.current) throw new Error('AudioContext not available');
     
     const ctx = audioContextRef.current;
@@ -253,10 +254,9 @@ export const BobbiCussion: React.FC = () => {
       await ctx.resume();
     }
 
-    // Create offline context for rendering with extended duration for modular processing
-    const duration = Math.max(0.2, 0.1 + (currentSynthParams.envelopeShape * 0.8)); // Extended for complex modulation
+    // Use custom sample length if provided, otherwise use duration-based calculation
     const sampleRate = ctx.sampleRate;
-    const bufferLength = Math.floor(duration * sampleRate);
+    const bufferLength = customSampleLength || Math.floor((Math.max(0.2, 0.1 + (currentSynthParams.envelopeShape * 0.8))) * sampleRate);
     
     const offlineCtx = new OfflineAudioContext(1, bufferLength, sampleRate);
     
@@ -276,6 +276,7 @@ export const BobbiCussion: React.FC = () => {
     filename?: string; 
     targetRmsDBFS?: number;
     format?: 'standard' | 'pt-wav';
+    customSampleLength?: number;
   } = {}): Promise<any> => {
     if (!audioContextRef.current) {
       throw new Error("Audio engine not ready");
@@ -285,7 +286,7 @@ export const BobbiCussion: React.FC = () => {
     
     try {
       // 1) Render to buffer with current modified parameters
-      const render = await renderAudioToBuffer(currentSynthParams, preset);
+      const render = await renderAudioToBuffer(currentSynthParams, preset, opts.customSampleLength);
 
       // 2) Normalize in place
       const info = normalizeMonoBuffer(render, { 
@@ -467,12 +468,12 @@ export const BobbiCussion: React.FC = () => {
 
   // Export handlers that use current modified parameters
   const handleExportStandardWav = useCallback(async () => {
-    return exportWav(synthParams, selectedPreset, { format: 'standard', targetRmsDBFS: -14 });
-  }, [exportWav, synthParams, selectedPreset]);
+    return exportWav(synthParams, selectedPreset, { format: 'standard', targetRmsDBFS: -14, customSampleLength: sampleLength });
+  }, [exportWav, synthParams, selectedPreset, sampleLength]);
 
   const handleExportPTWav = useCallback(async () => {
-    return exportWav(synthParams, selectedPreset, { format: 'pt-wav', targetRmsDBFS: -14 });
-  }, [exportWav, synthParams, selectedPreset]);
+    return exportWav(synthParams, selectedPreset, { format: 'pt-wav', targetRmsDBFS: -14, customSampleLength: sampleLength });
+  }, [exportWav, synthParams, selectedPreset, sampleLength]);
 
   // AI Sound Design Logic
   const handleAiGenerate = useCallback(async () => {
@@ -620,7 +621,20 @@ export const BobbiCussion: React.FC = () => {
                 <div className="w-2 h-2 bg-neon-cyan rounded-full mr-2"></div>
                 Export Audio
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    Sample Length (max 65534)
+                  </label>
+                  <input
+                    type="number"
+                    value={sampleLength}
+                    onChange={(e) => setSampleLength(Math.min(65534, Math.max(1, parseInt(e.target.value) || 1)))}
+                    min="1"
+                    max="65534"
+                    className="w-full bg-input text-foreground px-3 py-2 rounded border border-border focus:border-primary focus:outline-none text-sm"
+                  />
+                </div>
                 <button
                   onClick={handleExportStandardWav}
                   disabled={isExporting}
