@@ -636,13 +636,35 @@ export const BobbiCussion: React.FC = () => {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2 tracking-wide">
-            BobbiCussion
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Modular Percussion Synthesizer
-          </p>
+        <header className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-4xl font-bold text-primary tracking-wide">
+                BobbiCussion
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Modular Percussion Synthesizer
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <div className="text-sm text-muted-foreground mb-1">Synthesis Mode</div>
+              <div className="flex items-center space-x-3">
+                <span className={`text-sm ${!experimentalMode ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                  Basic
+                </span>
+                <Switch
+                  checked={experimentalMode}
+                  onCheckedChange={setExperimentalMode}
+                  className="data-[state=checked]:bg-primary"
+                />
+                <span className={`text-sm ${experimentalMode ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                  Experimental
+                </span>
+              </div>
+            </div>
+          </div>
         </header>
 
         {/* Main interface */}
@@ -655,33 +677,6 @@ export const BobbiCussion: React.FC = () => {
               onSelectPreset={handlePresetSelect}
               onRandomizePreset={handleRandomizePreset}
             />
-          </div>
-
-          {/* Mode Toggle - Add above Tweak Panel */}
-          <div className="rack-panel p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-primary mb-1">
-                  Synthesis Mode
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {experimentalMode ? 'Advanced controls & experimental features' : 'Essential controls only'}
-                </p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className={`text-sm ${!experimentalMode ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-                  Basic
-                </span>
-                <Switch
-                  checked={experimentalMode}
-                  onCheckedChange={setExperimentalMode}
-                  className="data-[state=checked]:bg-neon-magenta"
-                />
-                <span className={`text-sm ${experimentalMode ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-                  Experimental
-                </span>
-              </div>
-            </div>
           </div>
 
           {/* Tweak Panel - Center */}
