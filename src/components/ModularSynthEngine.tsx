@@ -205,29 +205,42 @@ export const generateModularSound = (ctx: BaseAudioContext, synthParams: any, se
   const vca = ctx.createGain();
   vca.gain.setValueAtTime(0, now);
   
-  // Envelope automation with proper offline context timing and safe time calculations
+  // Envelope automation with guaranteed positive time sequencing
+  // Ensure all envelope phases fit within the total duration
+  const totalEnvelopeTime = attackTime + decayTime + releaseTime;
+  
+  // If envelope is longer than duration, scale it down proportionally
+  if (totalEnvelopeTime > duration * 0.9) {
+    const scaleFactor = (duration * 0.9) / totalEnvelopeTime;
+    attackTime *= scaleFactor;
+    decayTime *= scaleFactor;
+    releaseTime *= scaleFactor;
+  }
+  
+  // Calculate envelope phase times - all guaranteed to be positive and sequential
+  const attackEnd = now + attackTime;
+  const decayEnd = attackEnd + decayTime;
+  const sustainEnd = now + duration - releaseTime;
+  const releaseEnd = now + duration;
+  
+  // Ensure proper time sequencing (each phase starts after the previous one ends)
+  const actualSustainEnd = Math.max(decayEnd + 0.01, Math.min(sustainEnd, releaseEnd - 0.02));
+  const actualReleaseEnd = Math.max(actualSustainEnd + 0.01, releaseEnd);
+  
   if (selectedPreset.category === 'drums') {
     // Punchy drum envelope with sharp attack
-    const endTime = Math.max(now + attackTime + decayTime + 0.05, now + duration);
-    const releaseStart = Math.max(now + attackTime + decayTime, endTime - 0.02);
-    
     vca.gain.setValueAtTime(0, now);
-    vca.gain.linearRampToValueAtTime(1.0, now + attackTime);
-    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(0.001, releaseStart);
-    vca.gain.setValueAtTime(0, endTime);
+    vca.gain.linearRampToValueAtTime(1.0, attackEnd);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), decayEnd);
+    vca.gain.exponentialRampToValueAtTime(0.001, actualSustainEnd);
+    vca.gain.setValueAtTime(0, actualReleaseEnd);
   } else {
     // More sustained envelope for sounds with voltage-style curves
-    const endTime = Math.max(now + attackTime + decayTime + releaseTime + 0.02, now + duration);
-    const releaseStart = Math.max(now + attackTime + decayTime, endTime - releaseTime);
-    const finalRelease = Math.max(releaseStart + 0.01, endTime - 0.01);
-    
     vca.gain.setValueAtTime(0, now);
-    vca.gain.linearRampToValueAtTime(0.9, now + attackTime);
-    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attackTime + decayTime);
-    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel * 0.3), releaseStart);
-    vca.gain.exponentialRampToValueAtTime(0.001, finalRelease);
-    vca.gain.setValueAtTime(0, endTime);
+    vca.gain.linearRampToValueAtTime(0.9, attackEnd);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), decayEnd);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel * 0.3), actualSustainEnd);
+    vca.gain.exponentialRampToValueAtTime(0.001, actualReleaseEnd);
   }
   
   // LOW FREQUENCY OSCILLATOR (LFO) - Voltage-controlled modulation
