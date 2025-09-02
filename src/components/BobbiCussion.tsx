@@ -254,14 +254,15 @@ const DEMO_PRESETS: Preset[] = [
   }
 ];
 
+// Initialize stable default parameters outside component
+const getInitialParams = (): SynthParams => ({
+  ...DEMO_PRESETS[0].parameters,
+  ...defaultParams
+});
+
 export const BobbiCussion: React.FC = () => {
-  console.log('BobbiCussion component starting...');
-  
   const [selectedPreset, setSelectedPreset] = useState<Preset>(DEMO_PRESETS[0]);
-  const [synthParams, setSynthParams] = useState<SynthParams>(() => {
-    // Initialize with default experimental parameters
-    return { ...DEMO_PRESETS[0].parameters, ...defaultParams };
-  });
+  const [synthParams, setSynthParams] = useState<SynthParams>(getInitialParams);
   const [experimentalMode, setExperimentalMode] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
